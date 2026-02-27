@@ -1,0 +1,39 @@
+Meeting Type: Advisor
+Date: 2026-02-03
+Start–End Time: 1:30 PM – 2:00 PM
+Location/Mode: In-person
+
+Attendees:
+- Prof. Andrew Bond
+- Anil Kumar Bandaru
+- Harsha Vardhan Badithaboina
+- Arathi Boddam
+- Sanjushree Golla
+
+1) Accomplished Since Last Meeting
+- Initial brainstorming on grocery management system idea.
+- Identified core themes: AI integration, meal planning, waste reduction, budgeting.
+- Drafted rough concept outline.
+
+2) Accomplished During This Meeting
+- Presented initial project idea: Grocify – AI-Driven Grocery Planning System.
+- Discussed scope and feasibility for CMPE 295A.
+- Refined focus toward AI-driven integration rather than simple CRUD app.
+- Advisor suggested modular architecture and phased implementation.
+- Discussed evaluation metrics (accuracy, usability, budget savings).
+
+3) Issues / Blockers
+- Scope appears large for one semester.
+- Need clearer module separation.
+- Dataset and API access concerns.
+
+4) Action Items
+- Finalize abstract draft | Owner: Arathi | Due: 2026-02-04
+- Define high-level system architecture | Owner: Anil | Due: 2026-02-04
+- Refine AI components description | Owner: Harsha | Due: 2026-02-04
+- Prepare presentation slides | Owner: Sanjushree | Due: 2026-02-05
+
+5) Plans / Goals for Next Meeting
+- Review finalized abstract.
+- Prepare submission materials.
+- Finalize presentation content.
