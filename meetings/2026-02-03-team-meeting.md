@@ -1,7 +1,11 @@
 Meeting 2 – Abstract Finalization
+
 Meeting Type: Team-Only
+
 Date: 2026-02-03
+
 Start–End Time: 6:00 PM – 8:00 PM
+
 Location/Mode: Zoom
 
 Attendees:
