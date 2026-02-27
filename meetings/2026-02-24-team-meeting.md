@@ -1,4 +1,4 @@
-Meeting 7 – Team Meeting (Same Day Internal Sync)
+Meeting 7 – Team Meeting ( Internal Sync)
 
 Meeting Type: Team-Only
 
