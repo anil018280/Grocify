@@ -4,7 +4,7 @@ Meeting Type: Team-Only
 
 Date: 2026-02-24
 
-Start–End Time: 6:30 PM – 8:00 PM
+Start–End Time: 6:30 PM – 7:00 PM
 
 Location/Mode: Zoom
 
