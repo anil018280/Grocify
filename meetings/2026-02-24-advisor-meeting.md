@@ -4,7 +4,7 @@ Meeting Type: Advisor
 
 Date: 2026-02-24
 
-Start–End Time: 2:00 PM – 3:00 PM
+Start–End Time: 2:00 PM – 2:15 PM
 
 Location/Mode: In-person
 
