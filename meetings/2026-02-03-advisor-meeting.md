@@ -1,7 +1,11 @@
 Meeting 1 – Advisor Meeting
+
 Meeting Type: Advisor
+
 Date: 2026-02-03
+
 Start–End Time: 1:30 PM – 2:00 PM
+
 Location/Mode: In-person
 
 Attendees:
