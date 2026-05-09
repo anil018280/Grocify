@@ -1,0 +1,928 @@
+:root {
+  --surface: #ffffff;
+  --surface-soft: #f2f6f2;
+  --surface-alt: #f7faf7;
+  --text: #243126;
+  --muted: #738074;
+  --line: #dfe6dd;
+  --green: #31843d;
+  --green-soft: #dff5df;
+  --orange: #d96a2b;
+  --orange-soft: #fff0e5;
+  --blue: #3b82f6;
+  --blue-soft: #eaf2ff;
+  --red: #df4c43;
+  --red-soft: #ffe5e1;
+  --purple: #8b5cf6;
+  --purple-soft: #f1e9ff;
+  --shadow: 0 12px 28px rgba(27, 46, 32, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: "Manrope", sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, #f8fbf7 0%, #eff5ef 100%);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.app-topbar {
+  height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--green);
+}
+
+.brand-mark svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.brand p,
+.brand span,
+.kicker,
+.metric-label,
+.metric-note,
+.inventory-meta,
+.recipe-tag,
+.recipe-description,
+.workspace-copy,
+.side-card-copy,
+.snapshot-copy,
+.budget-card p,
+.calorie-label,
+.calorie-note {
+  margin: 0;
+}
+
+.brand p {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.brand span,
+.workspace-copy,
+.inventory-meta,
+.recipe-description,
+.recipe-meta,
+.side-card-copy {
+  color: var(--muted);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.icon-button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: calc(100vh - 82px);
+}
+
+.sidebar {
+  padding: 24px 20px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-item {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.nav-item.active {
+  background: var(--surface-soft);
+  color: var(--green);
+}
+
+.side-card {
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid transparent;
+}
+
+.warning-card {
+  background: var(--orange-soft);
+  border-color: #ffd7bb;
+}
+
+.info-card {
+  background: var(--blue-soft);
+  border-color: #cfe0ff;
+}
+
+.side-card-title {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.side-card-button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.workspace {
+  padding: 28px;
+}
+
+.workspace-panel {
+  display: none;
+}
+
+.workspace-panel.active {
+  display: block;
+}
+
+.workspace-header,
+.workspace-actions,
+.panel-head,
+.inventory-main,
+.inventory-actions,
+.recipe-head,
+.metric-card,
+.shopping-item,
+.calorie-entry {
+  display: flex;
+  align-items: center;
+}
+
+.workspace-header,
+.panel-head,
+.inventory-main,
+.inventory-actions,
+.recipe-head,
+.metric-card,
+.shopping-item,
+.calorie-entry {
+  justify-content: space-between;
+}
+
+.workspace-header {
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.workspace-header.single-column {
+  display: block;
+}
+
+.workspace-actions {
+  gap: 12px;
+  align-self: flex-start;
+}
+
+.kicker {
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green);
+  font-weight: 800;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+
+h1 {
+  font-size: 2.3rem;
+  margin-top: 8px;
+}
+
+h2 {
+  font-size: 1.2rem;
+}
+
+.workspace-copy {
+  margin-top: 10px;
+  max-width: 62ch;
+  line-height: 1.6;
+}
+
+.search-field {
+  min-width: 320px;
+}
+
+.compact-select {
+  min-width: 240px;
+}
+
+.search-field span {
+  display: none;
+}
+
+input,
+select,
+.primary-button,
+.ghost-button,
+.tab-pill {
+  border-radius: 14px;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.primary-button,
+.ghost-button,
+.tab-pill {
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.primary-button {
+  padding: 13px 18px;
+  color: white;
+  background: var(--green);
+}
+
+.ghost-button {
+  padding: 11px 14px;
+  color: var(--text);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+}
+
+.panel,
+.metric-card,
+.inventory-card,
+.recipe-card,
+.shopping-item,
+.chart-card,
+.calorie-entry,
+.nutrition-inner-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.panel,
+.chart-card,
+.nutrition-inner-panel {
+  border-radius: 22px;
+  padding: 22px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.metric-card {
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+}
+
+.metric-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--surface-soft);
+  flex: 0 0 auto;
+}
+
+.metric-card:nth-child(1) .metric-icon {
+  background: var(--green-soft);
+}
+
+.metric-card:nth-child(2) .metric-icon {
+  background: var(--red-soft);
+}
+
+.metric-card:nth-child(3) .metric-icon {
+  background: var(--blue-soft);
+}
+
+.metric-card:nth-child(4) .metric-icon {
+  background: var(--purple-soft);
+}
+
+.metric-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.metric-value {
+  margin-top: 6px;
+  font-size: 2rem;
+}
+
+.metric-note {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 20px;
+}
+
+.primary-column,
+.secondary-column,
+.nutrition-layout {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
+.panel-head {
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.panel-head.tight {
+  align-items: flex-start;
+}
+
+.pantry-form,
+.recipe-checker,
+.calorie-form {
+  display: grid;
+  gap: 12px;
+}
+
+.pantry-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.recipe-checker {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.calorie-form {
+  grid-template-columns: 2fr 1fr auto;
+}
+
+.pantry-form label,
+.calorie-form label,
+.recipe-checker label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.form-submit,
+.recipe-checker-actions {
+  align-self: end;
+}
+
+.recipe-span-2,
+.ingredient-pill-list,
+.recipe-checker-actions,
+.match-summary {
+  grid-column: 1 / -1;
+}
+
+.inventory-list,
+.shopping-list,
+.snapshot-strip,
+.calorie-log,
+.history-list,
+.insight-list,
+.nutrient-progress-list {
+  display: grid;
+  gap: 12px;
+}
+
+.inventory-card,
+.recipe-card,
+.shopping-item {
+  padding: 18px;
+  border-radius: 18px;
+}
+
+.inventory-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.inventory-button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.inventory-category,
+.inventory-badge,
+.recipe-tag,
+.recipe-score,
+.snapshot-chip,
+.ingredient-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.inventory-category,
+.recipe-tag,
+.ingredient-pill {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.inventory-badge.safe {
+  background: #e5f7e8;
+  color: #2e7d42;
+}
+
+.inventory-badge.soon {
+  background: var(--orange-soft);
+  color: var(--orange);
+}
+
+.inventory-badge.urgent {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.snapshot-panel {
+  background: linear-gradient(180deg, #234029 0%, #315c3a 100%);
+  color: white;
+}
+
+.snapshot-panel .kicker,
+.snapshot-panel .snapshot-copy {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.snapshot-total {
+  margin-top: 8px;
+  font-size: 4rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.snapshot-chip {
+  width: fit-content;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+}
+
+.quick-links {
+  display: grid;
+  gap: 12px;
+}
+
+.quick-link {
+  text-align: left;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface-alt);
+  cursor: pointer;
+}
+
+.quick-link strong,
+.shopping-item strong,
+.calorie-entry strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.quick-link span,
+.shopping-item span,
+.calorie-entry span {
+  color: var(--muted);
+}
+
+.recipe-filter {
+  max-width: 220px;
+}
+
+.inline-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.ingredient-pill-list,
+.recipe-meta,
+.recipe-ingredients,
+.macro-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recipe-checker-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.match-summary {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
+.recipe-library-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.recipe-card {
+  display: grid;
+  gap: 12px;
+}
+
+.recipe-score {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.recipe-description {
+  line-height: 1.55;
+}
+
+.recipe-meta {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.recipe-ingredient {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  font-size: 0.85rem;
+}
+
+.recipe-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tab-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 6px;
+  border-radius: 18px;
+  background: var(--surface-soft);
+  margin-bottom: 18px;
+}
+
+.tab-pill {
+  padding: 12px 14px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.tab-pill.active {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.budget-layout,
+.nutrition-visual-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 20px;
+}
+
+.bar-chart {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: end;
+  gap: 18px;
+  min-height: 260px;
+  margin-top: 18px;
+}
+
+.bar-group {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.bar {
+  width: 100%;
+  max-width: 86px;
+  border-radius: 16px 16px 6px 6px;
+  background: linear-gradient(180deg, #7ccc7d 0%, #4db152 100%);
+}
+
+.bar-label,
+.bar-value {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.insight-banner {
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--blue-soft);
+  color: #2950c2;
+}
+
+.history-row,
+.insight-row {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-row span,
+.insight-row span {
+  color: var(--muted);
+}
+
+.macro-bars {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.macro-row,
+.comparison-row,
+.progress-row {
+  display: grid;
+  gap: 8px;
+}
+
+.macro-head,
+.comparison-head,
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.macro-track,
+.comparison-track,
+.progress-bar-track,
+.progress-track {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  background: #dce9da;
+  overflow: hidden;
+}
+
+.macro-fill,
+.comparison-current,
+.comparison-target,
+.progress-fill,
+.progress-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.macro-fill.protein,
+.legend-dot.protein {
+  background: #48b052;
+}
+
+.macro-fill.carbs,
+.legend-dot.carbs {
+  background: #3b8ee3;
+}
+
+.macro-fill.fat,
+.legend-dot.fat {
+  background: #ff9c1a;
+}
+
+.comparison-chart {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.comparison-stack {
+  position: relative;
+}
+
+.comparison-current {
+  background: #53b35c;
+}
+
+.comparison-target {
+  margin-top: 6px;
+  background: #3892e8;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  margin-right: 6px;
+}
+
+.nutrition-inner-panel {
+  margin-top: 20px;
+}
+
+.progress-bar-fill {
+  background: linear-gradient(90deg, #c4e0ff 0%, #7bb2ff 100%);
+}
+
+.progress-bar-fill.orange {
+  background: linear-gradient(90deg, #ffe0b8 0%, #ffae42 100%);
+}
+
+.progress-bar-fill.yellow {
+  background: linear-gradient(90deg, #fff3b0 0%, #f3cc39 100%);
+}
+
+.progress-bar-fill.green {
+  background: linear-gradient(90deg, #d8f7dd 0%, #48b052 100%);
+}
+
+.progress-bar-fill.red {
+  background: linear-gradient(90deg, #ffd8d4 0%, #df4c43 100%);
+}
+
+.calorie-panel {
+  background: linear-gradient(180deg, #f5fbf4 0%, #edf7ec 100%);
+}
+
+.target-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.86rem;
+  color: var(--muted);
+  min-width: 140px;
+}
+
+.target-field input {
+  padding: 10px 12px;
+}
+
+.calorie-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.calorie-total {
+  margin-top: 6px;
+  font-size: 2.4rem;
+}
+
+.calorie-note {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.progress-fill {
+  width: 0;
+  background: linear-gradient(90deg, #31843d 0%, #6fbe61 100%);
+}
+
+.calorie-log {
+  margin-top: 18px;
+}
+
+.calorie-entry {
+  padding: 16px 18px;
+  border-radius: 16px;
+}
+
+@media (max-width: 1180px) {
+  .metrics-grid,
+  .recipe-library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .content-grid,
+  .budget-layout,
+  .nutrition-visual-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .workspace-header,
+  .workspace-actions {
+    display: grid;
+  }
+
+  .search-field,
+  .compact-select {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .workspace {
+    padding: 18px;
+  }
+
+  .app-topbar {
+    padding: 0 14px;
+  }
+
+  .metrics-grid,
+  .pantry-form,
+  .recipe-checker,
+  .recipe-library-grid,
+  .calorie-form,
+  .calorie-summary,
+  .tab-strip {
+    grid-template-columns: 1fr;
+  }
+}
