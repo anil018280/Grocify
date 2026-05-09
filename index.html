@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grocify Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-topbar">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M18.8 5.2c-2.4-1.8-6.2-1.5-8.8.9-2.2 2-3 4.9-2.4 7.4L3.7 17.4a1 1 0 0 0 1.4 1.4l3.9-3.9c2.5.6 5.4-.2 7.4-2.4 2.4-2.6 2.7-6.4.9-8.7l-5.2 5.2-2.2-.1-.1-2.2 5.2-5.5Z"
+              />
+            </svg>
+          </div>
+          <div>
+            <p>Grocify</p>
+            <span>Inventory and meal planning</span>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="icon-button" type="button" aria-label="Notifications">?</button>
+          <button class="icon-button" type="button" aria-label="Profile">A</button>
+        </div>
+      </header>
+
+      <div class="app-layout">
+        <aside class="sidebar">
+          <nav class="sidebar-nav" aria-label="Workspace tabs">
+            <button class="nav-item active" type="button" data-tab="inventory">Inventory</button>
+            <button class="nav-item" type="button" data-tab="expiry">Expiry Tracker</button>
+            <button class="nav-item" type="button" data-tab="recipes">Recipes</button>
+            <button class="nav-item" type="button" data-tab="budget">Budget</button>
+            <button class="nav-item" type="button" data-tab="nutrition">Nutrition</button>
+          </nav>
+
+          <section class="side-card warning-card">
+            <p class="side-card-title">Expiring Soon</p>
+            <p class="side-card-copy" id="expiringMessage">You have 0 items expiring within 3 days</p>
+            <button class="side-card-button" type="button" id="viewExpiringButton">View items</button>
+          </section>
+
+          <section class="side-card info-card">
+            <p class="side-card-title">Shopping Cart</p>
+            <p class="side-card-copy" id="cartMessage">0 items in your cart</p>
+            <button class="side-card-button" type="button" id="viewCartButton">View cart</button>
+          </section>
+        </aside>
+
+        <main class="workspace">
+          <section class="workspace-panel active" data-panel="inventory">
+            <section class="workspace-header">
+              <div>
+                <p class="kicker">Dashboard</p>
+                <h1>My Inventory</h1>
+                <p class="workspace-copy">
+                  Track pantry stock, catch items before they expire, and keep the kitchen ready for the week.
+                </p>
+              </div>
+
+              <div class="workspace-actions">
+                <label class="search-field">
+                  <span>Search</span>
+                  <input type="search" id="inventorySearch" placeholder="Search inventory..." />
+                </label>
+                <button class="primary-button" type="button" id="jumpToFormButton">Add Item</button>
+              </div>
+            </section>
+
+            <section class="metrics-grid" id="metricsGrid"></section>
+
+            <section class="content-grid">
+              <div class="primary-column">
+                <section class="panel inventory-panel" id="pantry">
+                  <div class="panel-head">
+                    <div>
+                      <p class="kicker">Pantry</p>
+                      <h2>Inventory manager</h2>
+                    </div>
+                    <button class="ghost-button" type="button" id="restockButton">Auto-fill staples</button>
+                  </div>
+
+                  <form class="pantry-form" id="pantryForm">
+                    <label>
+                      Item
+                      <input type="text" id="itemName" placeholder="Spinach" required />
+                    </label>
+                    <label>
+                      Quantity
+                      <input type="number" id="itemQuantity" min="1" value="1" required />
+                    </label>
+                    <label>
+                      Unit
+                      <select id="itemUnit">
+                        <option value="pcs">pcs</option>
+                        <option value="cups">cups</option>
+                        <option value="bunches">bunches</option>
+                        <option value="lbs">lbs</option>
+                        <option value="oz">oz</option>
+                      </select>
+                    </label>
+                    <label>
+                      Category
+                      <select id="itemCategory">
+                        <option value="Produce">Produce</option>
+                        <option value="Dairy">Dairy</option>
+                        <option value="Protein">Protein</option>
+                        <option value="Grains">Grains</option>
+                        <option value="Pantry">Pantry</option>
+                      </select>
+                    </label>
+                    <label>
+                      Days left
+                      <input type="number" id="itemDaysLeft" min="0" value="5" required />
+                    </label>
+                    <label>
+                      Price
+                      <input type="number" id="itemPrice" min="0" step="0.01" value="3.50" required />
+                    </label>
+                    <button class="primary-button form-submit" type="submit">Save item</button>
+                  </form>
+
+                  <div class="inventory-list" id="inventoryList"></div>
+                </section>
+              </div>
+
+              <div class="secondary-column">
+                <section class="panel snapshot-panel">
+                  <div class="panel-head tight">
+                    <div>
+                      <p class="kicker">This week</p>
+                      <h2>Expiry focus</h2>
+                    </div>
+                    <button class="ghost-button" type="button" id="focusModeButton">Focus mode</button>
+                  </div>
+                  <div class="snapshot-total" id="wasteRiskCount">0</div>
+                  <p class="snapshot-copy">items need attention in the next 3 days</p>
+                  <div class="snapshot-strip" id="snapshotStrip"></div>
+                </section>
+
+                <section class="panel">
+                  <div class="panel-head tight">
+                    <div>
+                      <p class="kicker">Quick actions</p>
+                      <h2>Jump to planning</h2>
+                    </div>
+                  </div>
+                  <div class="quick-links">
+                    <button class="quick-link" type="button" id="openRecipesButton">
+                      <strong>Recipes</strong>
+                      <span>See pantry-matched meal ideas</span>
+                    </button>
+                    <button class="quick-link" type="button" id="openBudgetButton">
+                      <strong>Budget</strong>
+                      <span>Review spend and shopping summary</span>
+                    </button>
+                    <button class="quick-link" type="button" id="openNutritionButton">
+                      <strong>Nutrition</strong>
+                      <span>Log calories and nutrient progress</span>
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </section>
+          </section>
+
+          <section class="workspace-panel" data-panel="expiry">
+            <section class="workspace-header single-column">
+              <div>
+                <p class="kicker">Expiry Tracker</p>
+                <h1>Use these items first</h1>
+                <p class="workspace-copy">
+                  Prioritize ingredients that are close to expiring so the next meal plan reduces waste.
+                </p>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="inventory-list" id="expiryList"></div>
+            </section>
+          </section>
+
+          <section class="workspace-panel" data-panel="recipes">
+            <section class="workspace-header">
+              <div>
+                <p class="kicker">Recipes</p>
+                <h1>Recipe Planner</h1>
+                <p class="workspace-copy">
+                  Search pantry-friendly recipes, check ingredients, and add missing items to your cart.
+                </p>
+              </div>
+              <div class="workspace-actions">
+                <label class="search-field">
+                  <span>Search recipes</span>
+                  <input type="search" id="recipeSearch" placeholder="Search recipes..." />
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head tight">
+                <div>
+                  <p class="kicker">Recipe checker</p>
+                  <h2>Check recipe ingredients</h2>
+                </div>
+                <select class="recipe-filter" id="recipeFilterTab">
+                  <option value="all">All recipes</option>
+                  <option value="high">Best pantry match</option>
+                  <option value="budget">Budget friendly</option>
+                  <option value="expiring">Use expiring items</option>
+                </select>
+              </div>
+              <form class="recipe-checker" id="recipeCheckerForm">
+                <label class="recipe-span-2">
+                  Recipe name
+                  <input type="text" id="customRecipeName" placeholder="E.g., Spaghetti Carbonara" />
+                </label>
+                <label class="recipe-span-2">
+                  Ingredients
+                  <div class="inline-form">
+                    <input type="text" id="customIngredientInput" placeholder="Add an ingredient" />
+                    <button class="primary-button" type="button" id="addIngredientButton">Add</button>
+                  </div>
+                </label>
+                <div class="ingredient-pill-list" id="customIngredientList"></div>
+                <div class="recipe-checker-actions">
+                  <button class="ghost-button" type="button" id="resetRecipeButton">Reset</button>
+                  <button class="primary-button" type="submit">Check ingredients</button>
+                </div>
+              </form>
+              <div class="match-summary" id="recipeMatchSummary"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head tight">
+                <div>
+                  <p class="kicker">Library</p>
+                  <h2>Recipe board</h2>
+                </div>
+              </div>
+              <div class="recipe-library-grid" id="recipeGridTab"></div>
+            </section>
+          </section>
+
+          <section class="workspace-panel" data-panel="budget">
+            <section class="workspace-header">
+              <div>
+                <p class="kicker">Budget</p>
+                <h1>Spending Tracker</h1>
+                <p class="workspace-copy">
+                  Track grocery spend, category mix, and purchase history while keeping the shopping cart lean.
+                </p>
+              </div>
+              <div class="workspace-actions">
+                <label class="search-field compact-select">
+                  <span>Budget range</span>
+                  <select id="budgetRange">
+                    <option>All Time</option>
+                    <option>Last 30 Days</option>
+                    <option>This Week</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section class="metrics-grid" id="budgetMetricsGrid"></section>
+
+            <section class="panel">
+              <div class="tab-strip">
+                <button class="tab-pill active" type="button">Overview</button>
+                <button class="tab-pill" type="button">By Category</button>
+                <button class="tab-pill" type="button">Purchase History</button>
+              </div>
+              <div class="budget-layout">
+                <section class="chart-card">
+                  <h3>Monthly Spending Trends</h3>
+                  <div class="bar-chart" id="spendingChart"></div>
+                </section>
+                <section class="chart-card">
+                  <h3>Suggested meal plan</h3>
+                  <div class="budget-card" id="budgetCardTab"></div>
+                  <div class="shopping-list" id="shoppingListTab"></div>
+                </section>
+              </div>
+              <div class="insight-banner">
+                Track grocery spending over time to identify trends and savings opportunities.
+              </div>
+              <div class="history-list" id="purchaseHistory"></div>
+            </section>
+          </section>
+
+          <section class="workspace-panel" data-panel="nutrition">
+            <section class="workspace-header">
+              <div>
+                <p class="kicker">Nutrition</p>
+                <h1>Nutrition & Diet Intelligence</h1>
+                <p class="workspace-copy">
+                  Monitor calories, nutrients, and simple diet insights from the pantry items you log.
+                </p>
+              </div>
+              <div class="workspace-actions">
+                <label class="search-field">
+                  <span>Search nutrition items</span>
+                  <input type="search" id="nutritionSearch" placeholder="Search inventory..." />
+                </label>
+              </div>
+            </section>
+
+            <section class="metrics-grid" id="nutritionSummaryGrid"></section>
+
+            <section class="panel">
+              <h2>Dietary Insights</h2>
+              <div class="insight-list" id="nutritionInsights"></div>
+            </section>
+
+            <section class="panel">
+              <div class="tab-strip">
+                <button class="tab-pill active" type="button">Nutrient Overview</button>
+                <button class="tab-pill" type="button">Nutritional Details</button>
+                <button class="tab-pill" type="button">By Item</button>
+              </div>
+              <div class="nutrition-visual-grid">
+                <section class="chart-card">
+                  <h3>Calorie Distribution</h3>
+                  <div class="macro-legend">
+                    <span class="legend-dot protein"></span>Protein
+                    <span class="legend-dot carbs"></span>Carbs
+                    <span class="legend-dot fat"></span>Fat
+                  </div>
+                  <div class="macro-bars" id="macroBars"></div>
+                </section>
+                <section class="chart-card">
+                  <h3>Nutrient Comparison</h3>
+                  <div class="comparison-chart" id="nutritionComparison"></div>
+                </section>
+              </div>
+              <section class="panel nutrition-inner-panel">
+                <h3>Daily Nutrient Progress</h3>
+                <div class="nutrient-progress-list" id="nutrientProgressList"></div>
+              </section>
+            </section>
+
+            <section class="nutrition-layout">
+              <section class="panel calorie-panel">
+                <div class="panel-head tight">
+                  <div>
+                    <p class="kicker">Daily target</p>
+                    <h2>Today's calorie progress</h2>
+                  </div>
+                  <label class="target-field">
+                    <span>Calorie goal</span>
+                    <input type="number" id="calorieTargetInput" min="1200" step="50" value="2000" />
+                  </label>
+                </div>
+                <div class="calorie-summary">
+                  <div>
+                    <p class="calorie-label">Consumed</p>
+                    <h3 class="calorie-total" id="calorieConsumed">0</h3>
+                  </div>
+                  <div>
+                    <p class="calorie-label">Remaining</p>
+                    <h3 class="calorie-total" id="calorieRemaining">0</h3>
+                  </div>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" id="calorieProgress"></div>
+                </div>
+                <p class="calorie-note" id="calorieNote">0% of your 2,000 calorie target used.</p>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head tight">
+                  <div>
+                    <p class="kicker">Log meal</p>
+                    <h2>Add calories from pantry</h2>
+                  </div>
+                </div>
+                <form class="calorie-form" id="calorieForm">
+                  <label>
+                    Pantry item
+                    <select id="calorieItemSelect"></select>
+                  </label>
+                  <label>
+                    Servings
+                    <input type="number" id="calorieServings" min="1" value="1" required />
+                  </label>
+                  <button class="primary-button form-submit" type="submit">Log calories</button>
+                </form>
+                <div class="calorie-log" id="calorieLog"></div>
+              </section>
+            </section>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <template id="metricTemplate">
+      <article class="metric-card">
+        <div class="metric-icon"></div>
+        <div>
+          <p class="metric-label"></p>
+          <h3 class="metric-value"></h3>
+          <p class="metric-note"></p>
+        </div>
+      </article>
+    </template>
+
+    <template id="inventoryTemplate">
+      <article class="inventory-card">
+        <div class="inventory-copy">
+          <div class="inventory-main">
+            <h3 class="inventory-name"></h3>
+            <span class="inventory-category"></span>
+          </div>
+          <p class="inventory-meta"></p>
+        </div>
+        <div class="inventory-actions">
+          <span class="inventory-badge"></span>
+          <div class="inventory-button-row">
+            <button class="ghost-button compact-button consume-button" type="button">Use</button>
+            <button class="ghost-button compact-button edit-button" type="button">Edit</button>
+            <button class="ghost-button compact-button remove-button" type="button">Remove</button>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <template id="recipeTemplate">
+      <article class="recipe-card">
+        <div class="recipe-head">
+          <p class="recipe-tag"></p>
+          <span class="recipe-score"></span>
+        </div>
+        <h3 class="recipe-name"></h3>
+        <p class="recipe-description"></p>
+        <div class="recipe-meta"></div>
+        <div class="recipe-ingredients"></div>
+        <div class="recipe-actions"></div>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
