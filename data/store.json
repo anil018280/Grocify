@@ -1,0 +1,550 @@
+{
+  "users": [
+    {
+      "id": "0e057013-b708-42ab-94bd-2b9af717661b",
+      "name": "arathiboddam",
+      "email": "boddamarathi@gmail.com",
+      "passwordHash": "9f06189b8a99a63c82e6aea0cbd2652a:6943431010d5ca954a48d2a7982f5524ac48f70dc58cf8040a14bbbafc12f28bf3c3c9c5c9ca889d1dc1c0d00ef349c8284b6f930d0aa873be26f0606640f7db",
+      "state": {
+        "pantry": [
+          {
+            "id": 1,
+            "name": "Spinach",
+            "quantity": 1,
+            "unit": "bunches",
+            "category": "Produce",
+            "daysLeft": 2,
+            "price": 2.5,
+            "nutrition": {
+              "calories": 23,
+              "protein": 3,
+              "carbs": 4,
+              "fat": 0,
+              "fiber": 2
+            }
+          },
+          {
+            "id": 2,
+            "name": "Tomatoes",
+            "quantity": 4,
+            "unit": "pcs",
+            "category": "Produce",
+            "daysLeft": 4,
+            "price": 3.2,
+            "nutrition": {
+              "calories": 22,
+              "protein": 1,
+              "carbs": 5,
+              "fat": 0,
+              "fiber": 2
+            }
+          },
+          {
+            "id": 3,
+            "name": "Greek Yogurt",
+            "quantity": 1,
+            "unit": "cups",
+            "category": "Dairy",
+            "daysLeft": 5,
+            "price": 4.1,
+            "nutrition": {
+              "calories": 130,
+              "protein": 17,
+              "carbs": 6,
+              "fat": 4,
+              "fiber": 0
+            }
+          },
+          {
+            "id": 4,
+            "name": "Eggs",
+            "quantity": 6,
+            "unit": "pcs",
+            "category": "Protein",
+            "daysLeft": 7,
+            "price": 3.9,
+            "nutrition": {
+              "calories": 72,
+              "protein": 6,
+              "carbs": 0,
+              "fat": 5,
+              "fiber": 0
+            }
+          },
+          {
+            "id": 5,
+            "name": "Brown Rice",
+            "quantity": 2,
+            "unit": "cups",
+            "category": "Grains",
+            "daysLeft": 28,
+            "price": 2.2,
+            "nutrition": {
+              "calories": 216,
+              "protein": 5,
+              "carbs": 45,
+              "fat": 2,
+              "fiber": 4
+            }
+          },
+          {
+            "id": 6,
+            "name": "Chickpeas",
+            "quantity": 2,
+            "unit": "cups",
+            "category": "Pantry",
+            "daysLeft": 60,
+            "price": 1.8,
+            "nutrition": {
+              "calories": 269,
+              "protein": 14,
+              "carbs": 45,
+              "fat": 4,
+              "fiber": 12
+            }
+          }
+        ],
+        "cartItems": [
+          {
+            "id": 1787537637592.5251,
+            "name": "Lemons",
+            "quantity": 1,
+            "price": 1.9
+          },
+          {
+            "id": 1787537637592.3904,
+            "name": "Black Beans",
+            "quantity": 1,
+            "price": 2.6
+          }
+        ],
+        "calorieEntries": [
+          {
+            "id": 21,
+            "itemName": "Greek Yogurt",
+            "servings": 1,
+            "calories": 130,
+            "protein": 17,
+            "carbs": 6,
+            "fat": 4,
+            "fiber": 0
+          },
+          {
+            "id": 22,
+            "itemName": "Eggs",
+            "servings": 2,
+            "calories": 144,
+            "protein": 12,
+            "carbs": 0,
+            "fat": 10,
+            "fiber": 0
+          }
+        ],
+        "calorieTarget": 2000,
+        "customIngredients": [],
+        "activeTab": "inventory",
+        "focusedMode": false,
+        "customRecipeNameValue": ""
+      },
+      "createdAt": "2026-08-24T02:13:57.588Z"
+    },
+    {
+      "id": "ec700331-529d-4005-a0b4-ce48ce2fdb90",
+      "name": "jia",
+      "email": "jia.boddam@sjsu.edu",
+      "passwordHash": "8b46d4d9f56eedd7ae27c1b3377dc3da:fd11a19133f481a10c3f0a63f43707384c895a0c18a94e14d780ba2a10cb9ec41f06c8490e43ea2a7918eef5a54dd35ac51c97408253d80ccbcdfa5933d9f1e6",
+      "state": {
+        "pantry": [
+          {
+            "id": 1787538480545.2505,
+            "name": "coffee",
+            "quantity": 1,
+            "unit": "lbs",
+            "category": "Pantry",
+            "daysLeft": 70,
+            "price": 22,
+            "nutrition": {
+              "calories": 120,
+              "protein": 4,
+              "carbs": 12,
+              "fat": 3,
+              "fiber": 1
+            }
+          },
+          {
+            "id": 1787538371612.649,
+            "name": "lentils",
+            "quantity": 2,
+            "unit": "lbs",
+            "category": "Grains",
+            "daysLeft": 30,
+            "price": 8,
+            "nutrition": {
+              "calories": 120,
+              "protein": 4,
+              "carbs": 12,
+              "fat": 3,
+              "fiber": 1
+            }
+          },
+          {
+            "id": 1787538319696.6401,
+            "name": "paneer",
+            "quantity": 2,
+            "unit": "cups",
+            "category": "Dairy",
+            "daysLeft": 10,
+            "price": 10,
+            "nutrition": {
+              "calories": 120,
+              "protein": 4,
+              "carbs": 12,
+              "fat": 3,
+              "fiber": 1
+            }
+          },
+          {
+            "id": 1,
+            "name": "Spinach",
+            "quantity": 1,
+            "unit": "bunches",
+            "category": "Produce",
+            "daysLeft": 2,
+            "price": 2.5,
+            "nutrition": {
+              "calories": 23,
+              "protein": 3,
+              "carbs": 4,
+              "fat": 0,
+              "fiber": 2
+            }
+          },
+          {
+            "id": 2,
+            "name": "Tomatoes",
+            "quantity": 4,
+            "unit": "pcs",
+            "category": "Produce",
+            "daysLeft": 4,
+            "price": 3.2,
+            "nutrition": {
+              "calories": 22,
+              "protein": 1,
+              "carbs": 5,
+              "fat": 0,
+              "fiber": 2
+            }
+          },
+          {
+            "id": 3,
+            "name": "Greek Yogurt",
+            "quantity": 1,
+            "unit": "cups",
+            "category": "Dairy",
+            "daysLeft": 5,
+            "price": 4.1,
+            "nutrition": {
+              "calories": 130,
+              "protein": 17,
+              "carbs": 6,
+              "fat": 4,
+              "fiber": 0
+            }
+          },
+          {
+            "id": 4,
+            "name": "Eggs",
+            "quantity": 6,
+            "unit": "pcs",
+            "category": "Protein",
+            "daysLeft": 7,
+            "price": 3.9,
+            "nutrition": {
+              "calories": 72,
+              "protein": 6,
+              "carbs": 0,
+              "fat": 5,
+              "fiber": 0
+            }
+          },
+          {
+            "id": 5,
+            "name": "Brown Rice",
+            "quantity": 2,
+            "unit": "cups",
+            "category": "Grains",
+            "daysLeft": 28,
+            "price": 2.2,
+            "nutrition": {
+              "calories": 216,
+              "protein": 5,
+              "carbs": 45,
+              "fat": 2,
+              "fiber": 4
+            }
+          },
+          {
+            "id": 6,
+            "name": "Chickpeas",
+            "quantity": 2,
+            "unit": "cups",
+            "category": "Pantry",
+            "daysLeft": 60,
+            "price": 1.8,
+            "nutrition": {
+              "calories": 269,
+              "protein": 14,
+              "carbs": 45,
+              "fat": 4,
+              "fiber": 12
+            }
+          }
+        ],
+        "cartItems": [
+          {
+            "id": 1787537669047.2888,
+            "name": "Lemons",
+            "quantity": 1,
+            "price": 1.9
+          },
+          {
+            "id": 1787537669047.4922,
+            "name": "Black Beans",
+            "quantity": 1,
+            "price": 2.6
+          }
+        ],
+        "calorieEntries": [
+          {
+            "id": 21,
+            "itemName": "Greek Yogurt",
+            "servings": 1,
+            "calories": 130,
+            "protein": 17,
+            "carbs": 6,
+            "fat": 4,
+            "fiber": 0
+          },
+          {
+            "id": 22,
+            "itemName": "Eggs",
+            "servings": 2,
+            "calories": 144,
+            "protein": 12,
+            "carbs": 0,
+            "fat": 10,
+            "fiber": 0
+          }
+        ],
+        "calorieTarget": 2000,
+        "customIngredients": [],
+        "activeTab": "inventory",
+        "focusedMode": false,
+        "customRecipeNameValue": ""
+      },
+      "createdAt": "2026-08-24T02:14:29.045Z",
+      "resources": {
+        "pantry": [
+          {
+            "id": 1787538480545.2505,
+            "name": "coffee",
+            "quantity": 1,
+            "unit": "lbs",
+            "category": "Pantry",
+            "daysLeft": 70,
+            "price": 22,
+            "nutrition": {
+              "calories": 120,
+              "protein": 4,
+              "carbs": 12,
+              "fat": 3,
+              "fiber": 1
+            }
+          },
+          {
+            "id": 1787538371612.649,
+            "name": "lentils",
+            "quantity": 2,
+            "unit": "lbs",
+            "category": "Grains",
+            "daysLeft": 30,
+            "price": 8,
+            "nutrition": {
+              "calories": 120,
+              "protein": 4,
+              "carbs": 12,
+              "fat": 3,
+              "fiber": 1
+            }
+          },
+          {
+            "id": 1787538319696.6401,
+            "name": "paneer",
+            "quantity": 2,
+            "unit": "cups",
+            "category": "Dairy",
+            "daysLeft": 10,
+            "price": 10,
+            "nutrition": {
+              "calories": 120,
+              "protein": 4,
+              "carbs": 12,
+              "fat": 3,
+              "fiber": 1
+            }
+          },
+          {
+            "id": 1,
+            "name": "Spinach",
+            "quantity": 1,
+            "unit": "bunches",
+            "category": "Produce",
+            "daysLeft": 2,
+            "price": 2.5,
+            "nutrition": {
+              "calories": 23,
+              "protein": 3,
+              "carbs": 4,
+              "fat": 0,
+              "fiber": 2
+            }
+          },
+          {
+            "id": 2,
+            "name": "Tomatoes",
+            "quantity": 4,
+            "unit": "pcs",
+            "category": "Produce",
+            "daysLeft": 4,
+            "price": 3.2,
+            "nutrition": {
+              "calories": 22,
+              "protein": 1,
+              "carbs": 5,
+              "fat": 0,
+              "fiber": 2
+            }
+          },
+          {
+            "id": 3,
+            "name": "Greek Yogurt",
+            "quantity": 1,
+            "unit": "cups",
+            "category": "Dairy",
+            "daysLeft": 5,
+            "price": 4.1,
+            "nutrition": {
+              "calories": 130,
+              "protein": 17,
+              "carbs": 6,
+              "fat": 4,
+              "fiber": 0
+            }
+          },
+          {
+            "id": 4,
+            "name": "Eggs",
+            "quantity": 6,
+            "unit": "pcs",
+            "category": "Protein",
+            "daysLeft": 7,
+            "price": 3.9,
+            "nutrition": {
+              "calories": 72,
+              "protein": 6,
+              "carbs": 0,
+              "fat": 5,
+              "fiber": 0
+            }
+          },
+          {
+            "id": 5,
+            "name": "Brown Rice",
+            "quantity": 2,
+            "unit": "cups",
+            "category": "Grains",
+            "daysLeft": 28,
+            "price": 2.2,
+            "nutrition": {
+              "calories": 216,
+              "protein": 5,
+              "carbs": 45,
+              "fat": 2,
+              "fiber": 4
+            }
+          },
+          {
+            "id": 6,
+            "name": "Chickpeas",
+            "quantity": 2,
+            "unit": "cups",
+            "category": "Pantry",
+            "daysLeft": 60,
+            "price": 1.8,
+            "nutrition": {
+              "calories": 269,
+              "protein": 14,
+              "carbs": 45,
+              "fat": 4,
+              "fiber": 12
+            }
+          }
+        ],
+        "cart": {
+          "cartItems": [
+            {
+              "id": 1787537669047.2888,
+              "name": "Lemons",
+              "quantity": 1,
+              "price": 1.9
+            },
+            {
+              "id": 1787537669047.4922,
+              "name": "Black Beans",
+              "quantity": 1,
+              "price": 2.6
+            }
+          ]
+        },
+        "nutrition": {
+          "calorieEntries": [
+            {
+              "id": 21,
+              "itemName": "Greek Yogurt",
+              "servings": 1,
+              "calories": 130,
+              "protein": 17,
+              "carbs": 6,
+              "fat": 4,
+              "fiber": 0
+            },
+            {
+              "id": 22,
+              "itemName": "Eggs",
+              "servings": 2,
+              "calories": 144,
+              "protein": 12,
+              "carbs": 0,
+              "fat": 10,
+              "fiber": 0
+            }
+          ],
+          "calorieTarget": 2000
+        },
+        "profile": {
+          "customIngredients": [],
+          "activeTab": "inventory",
+          "focusedMode": false,
+          "customRecipeNameValue": ""
+        }
+      }
+    }
+  ],
+  "sessions": [
+    {
+      "token": "5735d2bfd5b8c5d13775c4a74f1cd88b31f6dc6b7fd594553f237f4ec8abb506",
+      "userId": "ec700331-529d-4005-a0b4-ce48ce2fdb90",
+      "createdAt": "2026-08-24T02:14:29.045Z"
+    }
+  ]
+}

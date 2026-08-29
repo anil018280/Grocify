@@ -1,0 +1,9 @@
+{
+  "name": "grocify",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Grocify full-stack prototype with local auth and synced pantry state",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
