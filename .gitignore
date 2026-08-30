@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.venv310/
+backend/.venv/
+backend/.venv310/
+frontend/node_modules/
+node_modules/
