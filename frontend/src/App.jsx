@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "./lib/api";
 import { useAuth } from "./providers/AuthProvider";
 
-const tabs = ["inventory", "budget", "nutrition", "profile"];
+const tabs = ["inventory", "planner", "budget", "nutrition", "profile"];
 
 const emptyForm = {
   name: "",
@@ -141,6 +141,12 @@ export default function App() {
     enabled: Boolean(token),
   });
 
+  const recommendationsQuery = useQuery({
+    queryKey: ["recommendations"],
+    queryFn: () => apiRequest("/recommendations", { token }),
+    enabled: Boolean(token),
+  });
+
   const pantryItems = pantryQuery.data?.pantry ?? [];
   const cartItems = cartQuery.data?.cart_items ?? [];
   const nutrition = nutritionQuery.data ?? { calorie_target: 2000, calorie_entries: [] };
@@ -158,6 +164,7 @@ export default function App() {
     onSuccess: () => {
       setSaveState("All changes saved");
       queryClient.invalidateQueries({ queryKey: ["pantry"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
     },
     onError: (error) => setSaveState(error.message),
   });
@@ -188,6 +195,7 @@ export default function App() {
     onSuccess: () => {
       setSaveState("All changes saved");
       queryClient.invalidateQueries({ queryKey: ["nutrition"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
     },
     onError: (error) => setSaveState(error.message),
   });
@@ -418,6 +426,68 @@ export default function App() {
     );
   }
 
+  function renderPlannerPanel() {
+    const recommendations = recommendationsQuery.data;
+    const riskStyles = {
+      low: "bg-emerald-50 text-emerald-700",
+      moderate: "bg-amber-50 text-amber-700",
+      high: "bg-red-50 text-red-700",
+    };
+
+    return (
+      <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+        <SectionCard className="bg-slate text-white">
+          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-white/70">Smart Planner</p>
+          <h3 className="mt-2 text-3xl font-extrabold">Plan with what you have</h3>
+          <p className="mt-3 text-sm leading-6 text-white/75">Grocify ranks pantry items by freshness and factors in your calorie target to make each suggestion explainable.</p>
+          <div className="mt-8 rounded-3xl bg-white/10 p-5">
+            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-white/70">Calories remaining</p>
+            <p className="mt-2 text-4xl font-extrabold">{recommendations?.calorie_remaining ?? "--"}</p>
+          </div>
+        </SectionCard>
+        <div className="grid gap-6">
+          <SectionCard>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Food-waste signal</p>
+                <h3 className="mt-2 text-2xl font-extrabold text-slate">Freshness-aware suggestions</h3>
+              </div>
+              {recommendations ? <span className={`rounded-full px-4 py-2 text-sm font-bold capitalize ${riskStyles[recommendations.food_waste_risk]}`}>{recommendations.food_waste_risk} risk</span> : null}
+            </div>
+            {recommendationsQuery.isLoading ? <p className="mt-5 text-sm text-stone-500">Creating your plan...</p> : null}
+            {recommendationsQuery.isError ? <p className="mt-5 text-sm text-red-600">{recommendationsQuery.error.message}</p> : null}
+            <div className="mt-5 grid gap-3">
+              {recommendations?.meal_ideas?.length ? recommendations.meal_ideas.map((idea) => (
+                <article key={idea.title} className="rounded-3xl border border-stone-200 bg-stone-50 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h4 className="text-lg font-extrabold text-slate">{idea.title}</h4>
+                      <p className="mt-1 text-sm text-stone-500">{idea.description}</p>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-moss">~{idea.estimated_calories} cal</span>
+                  </div>
+                  <p className="mt-4 text-sm font-semibold text-slate">Use: {idea.ingredients.join(", ")}</p>
+                  <p className="mt-2 text-sm text-stone-500">Why this: {idea.reason}</p>
+                </article>
+              )) : !recommendationsQuery.isLoading ? <p className="text-sm text-stone-500">Add pantry items to generate meal suggestions.</p> : null}
+            </div>
+          </SectionCard>
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Suggested next buys</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {recommendations?.shopping_suggestions?.map((suggestion) => (
+                <div key={suggestion.name} className="rounded-2xl bg-fern p-4">
+                  <p className="font-extrabold text-slate">{suggestion.name}</p>
+                  <p className="mt-1 text-sm text-stone-500">{suggestion.reason}</p>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </div>
+      </div>
+    );
+  }
+
   function renderNutritionPanel() {
     return (
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -464,6 +534,9 @@ export default function App() {
   function renderActivePanel() {
     if (activeTab === "budget") {
       return renderBudgetPanel();
+    }
+    if (activeTab === "planner") {
+      return renderPlannerPanel();
     }
     if (activeTab === "nutrition") {
       return renderNutritionPanel();

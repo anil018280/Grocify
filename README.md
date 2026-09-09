@@ -26,6 +26,7 @@ The repository currently contains three app layers:
 - Pantry inventory management flows
 - Shopping cart and grocery planning flows
 - Nutrition tracking endpoints and UI support
+- Freshness- and nutrition-aware meal and shopping recommendations at `/api/v1/recommendations`
 - User authentication with register/login endpoints
 - Profile and blackboard API routes
 - Alembic migration scaffolding and Docker-based infrastructure
