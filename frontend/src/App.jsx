@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiRequest } from "./lib/api";
 import { useAuth } from "./providers/AuthProvider";
+import plannerHero from "./assets/ai-meal-planner-hero.png";
 
 const tabs = ["inventory", "planner", "budget", "nutrition", "profile"];
 
@@ -116,6 +117,9 @@ export default function App() {
   const [saveState, setSaveState] = useState("All changes saved");
   const [editingItemId, setEditingItemId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [showItemForm, setShowItemForm] = useState(false);
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
 
   const pantryQuery = useQuery({
     queryKey: ["pantry"],
@@ -222,6 +226,7 @@ export default function App() {
   function resetForm() {
     setEditingItemId(null);
     setForm(emptyForm);
+    setShowItemForm(false);
   }
 
   function startEditing(item) {
@@ -234,6 +239,7 @@ export default function App() {
       days_left: item.days_left,
       price: item.price,
     });
+    setShowItemForm(true);
     setActiveTab("inventory");
   }
 
@@ -306,54 +312,80 @@ export default function App() {
   function renderInventoryPanel() {
     const cartTotal = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
     const expiringSoon = pantryItems.filter((item) => Number(item.days_left) <= 3).length;
+    const categories = ["All", ...new Set(pantryItems.map((item) => item.category).filter(Boolean))];
+    const visibleItems = pantryItems.filter((item) => {
+      const matchesSearch = item.name.toLowerCase().includes(inventorySearch.toLowerCase());
+      return matchesSearch && (activeCategory === "All" || item.category === activeCategory);
+    });
+    const useFirstItem = pantryItems.slice().sort((a, b) => Number(a.days_left) - Number(b.days_left))[0];
 
     return (
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
-        <SectionCard>
-          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Inventory</p>
-          <div className="mt-3 flex items-center justify-between gap-4">
+        <SectionCard className="bg-white">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Your pantry</p>
               <h3 className="text-2xl font-extrabold text-slate">Items you have</h3>
               <p className="mt-1 text-sm text-stone-500">{pantryItems.length} tracked pantry items worth ${inventoryValue.toFixed(2)}.</p>
             </div>
+            <button className="rounded-2xl bg-moss px-5 py-3 font-extrabold text-white shadow-lg shadow-moss/20 transition hover:-translate-y-0.5 hover:bg-[#255a32]" type="button" onClick={() => setShowItemForm((current) => !current)}>
+              {showItemForm ? "Close quick add" : "Add pantry item"}
+            </button>
           </div>
-          <form className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3" onSubmit={handlePantrySubmit}>
-            <input className="rounded-2xl border border-stone-200 px-4 py-3" placeholder="Item name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
-            <input className="rounded-2xl border border-stone-200 px-4 py-3" type="number" min="1" step="0.5" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: Number(event.target.value) }))} required />
-            <input className="rounded-2xl border border-stone-200 px-4 py-3" placeholder="Unit" value={form.unit} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value }))} required />
-            <input className="rounded-2xl border border-stone-200 px-4 py-3" placeholder="Category" value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} required />
-            <input className="rounded-2xl border border-stone-200 px-4 py-3" type="number" min="0" value={form.days_left} onChange={(event) => setForm((current) => ({ ...current, days_left: Number(event.target.value) }))} required />
-            <input className="rounded-2xl border border-stone-200 px-4 py-3" type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: Number(event.target.value) }))} required />
-            <div className="flex flex-wrap gap-3 md:col-span-2 xl:col-span-3">
-              <button className="rounded-2xl bg-moss px-5 py-3 font-bold text-white" type="submit">{editingItemId ? "Update item" : "Add item"}</button>
-              {editingItemId ? (
-                <button className="rounded-2xl border border-stone-200 px-5 py-3 font-bold text-stone-700" type="button" onClick={resetForm}>
-                  Cancel edit
-                </button>
-              ) : null}
-            </div>
-          </form>
+          {showItemForm ? (
+            <form className="mt-6 grid gap-3 rounded-3xl border border-moss/15 bg-fern p-4 md:grid-cols-2 xl:grid-cols-3" onSubmit={handlePantrySubmit}>
+              <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" placeholder="Item name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+              <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" type="number" min="1" step="0.5" aria-label="Quantity" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: Number(event.target.value) }))} required />
+              <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" placeholder="Unit (for example, pcs)" value={form.unit} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value }))} required />
+              <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" placeholder="Category" value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} required />
+              <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" type="number" min="0" aria-label="Days left" value={form.days_left} onChange={(event) => setForm((current) => ({ ...current, days_left: Number(event.target.value) }))} required />
+              <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" type="number" min="0" step="0.01" aria-label="Item price" value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: Number(event.target.value) }))} required />
+              <div className="flex flex-wrap gap-3 md:col-span-2 xl:col-span-3">
+                <button className="rounded-2xl bg-moss px-5 py-3 font-bold text-white" type="submit">{editingItemId ? "Save changes" : "Add item"}</button>
+                <button className="rounded-2xl border border-stone-200 bg-white px-5 py-3 font-bold text-stone-700" type="button" onClick={resetForm}>Cancel</button>
+              </div>
+            </form>
+          ) : null}
 
-          <div className="mt-6 grid max-h-[32rem] gap-3 overflow-y-auto pr-2">
+          <div className="mt-6 flex flex-col gap-3 border-y border-stone-100 py-4 md:flex-row md:items-center md:justify-between">
+            <input className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none transition focus:border-moss md:max-w-xs" placeholder="Search your pantry" value={inventorySearch} onChange={(event) => setInventorySearch(event.target.value)} />
+            <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+              {categories.map((category) => <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${activeCategory === category ? "bg-slate text-white" : "bg-fern text-stone-600 hover:bg-stone-100"}`}>{category}</button>)}
+            </div>
+          </div>
+
+          <div className="mt-5 grid max-h-[34rem] gap-3 overflow-y-auto pr-2">
             {pantryQuery.isLoading ? <p className="text-sm text-stone-500">Loading pantry...</p> : null}
-            {pantryItems.map((item) => (
-              <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4">
+            {visibleItems.map((item) => (
+              <div key={item.id} className="group flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4 transition hover:-translate-y-0.5 hover:border-moss/30 hover:bg-white hover:shadow-card">
                 <div>
-                  <h4 className="text-lg font-extrabold text-slate">{item.name}</h4>
-                  <p className="mt-1 text-sm text-stone-500">{item.quantity} {item.unit} • {item.category} • {item.days_left} days left • ${Number(item.price).toFixed(2)}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-lg font-extrabold text-slate">{item.name}</h4>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${Number(item.days_left) <= 3 ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>{item.days_left} days left</span>
+                  </div>
+                  <p className="mt-1 text-sm text-stone-500">{item.quantity} {item.unit} • {item.category} • ${Number(item.price).toFixed(2)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button className="rounded-2xl bg-white px-4 py-2 font-semibold text-stone-700" type="button" onClick={() => startEditing(item)}>Edit</button>
-                  <button className="rounded-2xl bg-white px-4 py-2 font-semibold text-stone-700" type="button" onClick={() => addCartFromPantry(item)}>Add to cart</button>
-                  <button className="rounded-2xl bg-white px-4 py-2 font-semibold text-stone-700" type="button" onClick={() => addNutritionFromPantry(item)}>Log meal</button>
+                  <button className="rounded-2xl bg-slate px-4 py-2 font-semibold text-white" type="button" onClick={() => addCartFromPantry(item)}>Cart</button>
+                  <button className="rounded-2xl bg-white px-4 py-2 font-semibold text-stone-700" type="button" onClick={() => addNutritionFromPantry(item)}>Log</button>
                   <button className="rounded-2xl bg-red-50 px-4 py-2 font-semibold text-red-600" type="button" onClick={() => removePantryItem(item.id)}>Remove</button>
                 </div>
               </div>
             ))}
+            {!pantryQuery.isLoading && !visibleItems.length ? <p className="rounded-2xl bg-stone-50 p-5 text-sm text-stone-500">No pantry items match that search yet.</p> : null}
           </div>
         </SectionCard>
 
         <div className="grid gap-6">
+          {useFirstItem ? (
+            <SectionCard className="relative bg-gradient-to-br from-moss to-[#1e4930] text-white">
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-lime-200">Use first</p>
+              <h3 className="mt-3 text-3xl font-extrabold">{useFirstItem.name}</h3>
+              <p className="mt-2 text-sm text-white/75">{useFirstItem.days_left} days left. Turn it into a meal before it is forgotten.</p>
+              <button className="mt-6 rounded-2xl bg-lime-200 px-4 py-3 font-extrabold text-slate transition hover:bg-white" type="button" onClick={() => updateActiveTab("planner")}>Plan a meal</button>
+            </SectionCard>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
             <MetricCard
               label="Inventory Value"
@@ -435,49 +467,66 @@ export default function App() {
     };
 
     return (
-      <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-        <SectionCard className="bg-slate text-white">
-          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-white/70">Smart Planner</p>
-          <h3 className="mt-2 text-3xl font-extrabold">Plan with what you have</h3>
-          <p className="mt-3 text-sm leading-6 text-white/75">Grocify ranks pantry items by freshness and factors in your calorie target to make each suggestion explainable.</p>
-          <div className="mt-8 rounded-3xl bg-white/10 p-5">
-            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-white/70">Calories remaining</p>
-            <p className="mt-2 text-4xl font-extrabold">{recommendations?.calorie_remaining ?? "--"}</p>
+      <div className="space-y-6">
+        <section className="relative min-h-[25rem] overflow-hidden rounded-[2rem] border border-stone-200 bg-slate shadow-card">
+          <img className="absolute inset-0 h-full w-full object-cover" src={plannerHero} alt="Colorful meal bowl with fresh vegetables and grains" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate via-slate/90 to-slate/20" />
+          <div className="relative flex min-h-[25rem] max-w-2xl flex-col justify-between p-7 text-white sm:p-10">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-lime-200">AI-inspired meal planner</p>
+              <h3 className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl">A fresher plan for every ingredient.</h3>
+              <p className="mt-4 max-w-lg text-base leading-7 text-white/80">Your planner turns pantry freshness and nutrition signals into practical, low-waste meal ideas.</p>
+            </div>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="rounded-3xl border border-white/20 bg-white/10 px-5 py-4 backdrop-blur-sm">
+                <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-white/65">Calories remaining</p>
+                <p className="mt-1 text-4xl font-extrabold">{recommendations?.calorie_remaining ?? "--"}</p>
+              </div>
+              <button className="rounded-2xl bg-lime-200 px-5 py-3 font-extrabold text-slate transition hover:bg-lime-100" type="button" onClick={() => recommendationsQuery.refetch()}>
+                Refresh my plan
+              </button>
+            </div>
           </div>
-        </SectionCard>
-        <div className="grid gap-6">
-          <SectionCard>
+        </section>
+
+        <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+          <SectionCard className="bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Food-waste signal</p>
-                <h3 className="mt-2 text-2xl font-extrabold text-slate">Freshness-aware suggestions</h3>
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Curated for today</p>
+                <h3 className="mt-2 text-3xl font-extrabold text-slate">Freshness-first meal ideas</h3>
               </div>
               {recommendations ? <span className={`rounded-full px-4 py-2 text-sm font-bold capitalize ${riskStyles[recommendations.food_waste_risk]}`}>{recommendations.food_waste_risk} risk</span> : null}
             </div>
-            {recommendationsQuery.isLoading ? <p className="mt-5 text-sm text-stone-500">Creating your plan...</p> : null}
+            {recommendationsQuery.isLoading ? <p className="mt-5 text-sm text-stone-500">Building a fresh plan from your pantry...</p> : null}
             {recommendationsQuery.isError ? <p className="mt-5 text-sm text-red-600">{recommendationsQuery.error.message}</p> : null}
-            <div className="mt-5 grid gap-3">
-              {recommendations?.meal_ideas?.length ? recommendations.meal_ideas.map((idea) => (
-                <article key={idea.title} className="rounded-3xl border border-stone-200 bg-stone-50 p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h4 className="text-lg font-extrabold text-slate">{idea.title}</h4>
-                      <p className="mt-1 text-sm text-stone-500">{idea.description}</p>
-                    </div>
+            <div className="mt-6 grid gap-4">
+              {recommendations?.meal_ideas?.length ? recommendations.meal_ideas.map((idea, index) => (
+                <article key={idea.title} className="overflow-hidden rounded-3xl border border-stone-200 bg-stone-50">
+                  <div className="flex items-center justify-between bg-fern px-5 py-3">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Idea {String(index + 1).padStart(2, "0")}</p>
                     <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-moss">~{idea.estimated_calories} cal</span>
                   </div>
-                  <p className="mt-4 text-sm font-semibold text-slate">Use: {idea.ingredients.join(", ")}</p>
-                  <p className="mt-2 text-sm text-stone-500">Why this: {idea.reason}</p>
+                  <div className="p-5">
+                    <h4 className="text-xl font-extrabold text-slate">{idea.title}</h4>
+                    <p className="mt-2 text-sm leading-6 text-stone-500">{idea.description}</p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {idea.ingredients.map((ingredient) => <span key={ingredient} className="rounded-full border border-stone-200 bg-white px-3 py-1 text-sm font-semibold text-stone-600">{ingredient}</span>)}
+                    </div>
+                    <p className="mt-4 border-t border-stone-200 pt-4 text-sm text-stone-500"><span className="font-bold text-slate">Why it works:</span> {idea.reason}</p>
+                  </div>
                 </article>
               )) : !recommendationsQuery.isLoading ? <p className="text-sm text-stone-500">Add pantry items to generate meal suggestions.</p> : null}
             </div>
           </SectionCard>
-          <SectionCard>
-            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Suggested next buys</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <SectionCard className="bg-sand">
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Complete the plan</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">Suggested next buys</h3>
+            <p className="mt-2 text-sm leading-6 text-stone-500">Small additions that make your pantry more versatile.</p>
+            <div className="mt-5 grid gap-3">
               {recommendations?.shopping_suggestions?.map((suggestion) => (
-                <div key={suggestion.name} className="rounded-2xl bg-fern p-4">
-                  <p className="font-extrabold text-slate">{suggestion.name}</p>
+                <div key={suggestion.name} className="rounded-2xl bg-white/80 p-4">
+                  <p className="text-lg font-extrabold text-slate">{suggestion.name}</p>
                   <p className="mt-1 text-sm text-stone-500">{suggestion.reason}</p>
                 </div>
               ))}
@@ -551,31 +600,36 @@ export default function App() {
   const expiringSoonCount = pantryItems.filter((item) => Number(item.days_left) <= 3).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-lime-50 to-stone-100">
-      <div className="mx-auto flex min-h-screen max-w-[1500px] gap-6 px-6 py-6">
-        <aside className="sticky top-6 h-fit w-80 self-start rounded-[2rem] border border-stone-200 bg-white p-6 shadow-card">
-          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Workspace</p>
-          <h1 className="mt-3 text-3xl font-extrabold text-slate">Grocify</h1>
-          <p className="mt-2 text-sm text-stone-500">Vite + Tailwind + TanStack Query frontend for the documented architecture.</p>
-          <nav className="mt-8 grid gap-2">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#f4f9d9,_transparent_34%),linear-gradient(180deg,_#fbfcf7_0%,_#edf4ec_100%)]">
+      <div className="mx-auto flex min-h-screen max-w-[1560px] flex-col gap-6 p-4 sm:p-6 xl:flex-row">
+        <aside className="h-fit self-start rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-card backdrop-blur xl:sticky xl:top-6 xl:w-80 xl:p-6">
+          <div className="flex items-center justify-between xl:block">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Workspace</p>
+              <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate">Grocify</h1>
+            </div>
+            <span className="rounded-full bg-lime-100 px-3 py-1.5 text-xs font-extrabold text-moss xl:mt-4 xl:inline-block">Smart pantry</span>
+          </div>
+          <p className="mt-3 max-w-xs text-sm leading-6 text-stone-500">A calmer kitchen starts with one clear plan for what you have.</p>
+          <nav className="mt-6 flex gap-2 overflow-x-auto pb-1 xl:grid xl:overflow-visible">
             {tabs.map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => updateActiveTab(tab)}
-                className={`rounded-2xl px-4 py-3 text-left font-bold capitalize ${activeTab === tab ? "bg-moss text-white" : "bg-fern text-stone-600"}`}
+                className={`whitespace-nowrap rounded-2xl px-4 py-3 text-left font-bold capitalize transition xl:w-full ${activeTab === tab ? "bg-gradient-to-r from-moss to-[#245a35] text-white shadow-lg shadow-moss/20" : "bg-fern text-stone-600 hover:bg-stone-100"}`}
               >
                 {tab}
               </button>
             ))}
           </nav>
-          <div className="mt-8 rounded-3xl bg-fern p-5">
+          <div className="mt-6 hidden rounded-3xl bg-fern p-5 xl:block">
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">Signed in</p>
             <h2 className="mt-2 text-xl font-extrabold text-slate">{user?.name || "Grocify user"}</h2>
-            <p className="mt-1 text-sm text-stone-500">JWT-authenticated session against the FastAPI backend.</p>
+            <p className="mt-1 text-sm text-stone-500">Your pantry is synced and ready for planning.</p>
           </div>
           <button
-            className="mt-6 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-bold text-stone-700"
+            className="mt-5 hidden w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-bold text-stone-700 transition hover:bg-stone-50 xl:block"
             onClick={logout}
             type="button"
           >
@@ -584,11 +638,11 @@ export default function App() {
         </aside>
 
         <main className="min-w-0 flex-1 space-y-6">
-          <div className="rounded-[2rem] border border-stone-200 bg-white px-6 py-6 shadow-card">
+          <div className="rounded-[2rem] border border-white/90 bg-white/90 px-6 py-6 shadow-card backdrop-blur sm:px-8">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Dashboard</p>
-                <h2 className="mt-2 text-3xl font-extrabold text-slate">Welcome back, {user?.name || "Grocify user"}</h2>
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Today&apos;s kitchen</p>
+                <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate sm:text-4xl">Welcome back, {user?.name || "Grocify user"}</h2>
                 <p className="mt-2 max-w-2xl text-sm text-stone-500">
                   Keep your pantry organized, catch expiring ingredients early, and stay on top of your shopping plan.
                 </p>
@@ -598,21 +652,21 @@ export default function App() {
               </div>
             </div>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl bg-fern px-5 py-4">
+              <button className="rounded-3xl bg-fern px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-card" type="button" onClick={() => updateActiveTab("inventory")}>
                 <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Pantry Items</p>
                 <p className="mt-2 text-3xl font-extrabold text-slate">{pantryItems.length}</p>
                 <p className="mt-1 text-sm text-stone-500">Items currently available in your kitchen.</p>
-              </div>
-              <div className="rounded-3xl bg-stone-50 px-5 py-4">
+              </button>
+              <button className="rounded-3xl bg-[#fff8e8] px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-card" type="button" onClick={() => updateActiveTab("planner")}>
                 <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Expiring Soon</p>
                 <p className="mt-2 text-3xl font-extrabold text-slate">{expiringSoonCount}</p>
                 <p className="mt-1 text-sm text-stone-500">Use these within the next 3 days.</p>
-              </div>
-              <div className="rounded-3xl bg-sand px-5 py-4">
+              </button>
+              <button className="rounded-3xl bg-sand px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-card" type="button" onClick={() => updateActiveTab("budget")}>
                 <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Cart Total</p>
                 <p className="mt-2 text-3xl font-extrabold text-slate">${cartTotal.toFixed(2)}</p>
                 <p className="mt-1 text-sm text-stone-500 capitalize">{activeTab} workspace active.</p>
-              </div>
+              </button>
             </div>
           </div>
 
