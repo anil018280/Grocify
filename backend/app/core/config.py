@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
     cors_origins: list[str] = ["http://127.0.0.1:8002", "http://localhost:8002", "http://127.0.0.1:5173"]
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-6-astra"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

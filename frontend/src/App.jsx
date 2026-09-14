@@ -120,6 +120,7 @@ export default function App() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [inventorySearch, setInventorySearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [recipeForm, setRecipeForm] = useState({ preferences: "", allergies: "", servings: 2, budget: 20 });
 
   const pantryQuery = useQuery({
     queryKey: ["pantry"],
@@ -202,6 +203,10 @@ export default function App() {
       queryClient.invalidateQueries({ queryKey: ["recommendations"] });
     },
     onError: (error) => setSaveState(error.message),
+  });
+
+  const recipeMutation = useMutation({
+    mutationFn: (payload) => apiRequest("/recommendations/recipe", { method: "POST", body: payload, token }),
   });
 
   const inventoryValue = useMemo(
@@ -306,6 +311,16 @@ export default function App() {
       focused_mode: profile.focused_mode,
       custom_recipe_name_value: profile.custom_recipe_name_value,
       custom_ingredients: profile.custom_ingredients,
+    });
+  }
+
+  function generateAiRecipe(event) {
+    event.preventDefault();
+    recipeMutation.mutate({
+      preferences: recipeForm.preferences,
+      allergies: recipeForm.allergies.split(",").map((entry) => entry.trim()).filter(Boolean),
+      servings: Number(recipeForm.servings),
+      budget: Number(recipeForm.budget),
     });
   }
 
@@ -487,6 +502,85 @@ export default function App() {
               </button>
             </div>
           </div>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
+          <SectionCard className="bg-[#fff8e8]">
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Generate with AI</p>
+            <h3 className="mt-2 text-3xl font-extrabold text-slate">Make tonight&apos;s recipe</h3>
+            <p className="mt-2 text-sm leading-6 text-stone-500">Tell Grocify what you want. It will use your pantry first and suggest substitutions when needed.</p>
+            <form className="mt-5 grid gap-3" onSubmit={generateAiRecipe}>
+              <label className="text-sm font-bold text-stone-600">
+                Preferences or cuisine
+                <input className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-normal outline-none transition focus:border-moss" placeholder="For example: quick vegetarian Indian meal" value={recipeForm.preferences} onChange={(event) => setRecipeForm((current) => ({ ...current, preferences: event.target.value }))} />
+              </label>
+              <label className="text-sm font-bold text-stone-600">
+                Allergies or ingredients to avoid
+                <input className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-normal outline-none transition focus:border-moss" placeholder="For example: peanuts, dairy" value={recipeForm.allergies} onChange={(event) => setRecipeForm((current) => ({ ...current, allergies: event.target.value }))} />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-sm font-bold text-stone-600">
+                  Servings
+                  <input className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-normal outline-none transition focus:border-moss" type="number" min="1" max="12" value={recipeForm.servings} onChange={(event) => setRecipeForm((current) => ({ ...current, servings: event.target.value }))} required />
+                </label>
+                <label className="text-sm font-bold text-stone-600">
+                  Budget ($)
+                  <input className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-normal outline-none transition focus:border-moss" type="number" min="1" step="0.5" value={recipeForm.budget} onChange={(event) => setRecipeForm((current) => ({ ...current, budget: event.target.value }))} required />
+                </label>
+              </div>
+              <button className="mt-2 rounded-2xl bg-moss px-5 py-3 font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-[#255a32] disabled:cursor-wait disabled:opacity-70" type="submit" disabled={recipeMutation.isPending}>
+                {recipeMutation.isPending ? "Creating your recipe..." : "Generate recipe"}
+              </button>
+              <p className="text-xs leading-5 text-stone-500">Recipe nutrition and cost are estimates, not medical or dietary advice.</p>
+            </form>
+          </SectionCard>
+
+          <SectionCard className="bg-white">
+            {recipeMutation.isError ? <p className="rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700">{recipeMutation.error.message}</p> : null}
+            {!recipeMutation.data && !recipeMutation.isPending && !recipeMutation.isError ? (
+              <div className="flex h-full min-h-80 flex-col justify-center rounded-3xl border border-dashed border-stone-200 bg-stone-50 p-8">
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Your recipe canvas</p>
+                <h3 className="mt-3 text-3xl font-extrabold text-slate">A pantry-led recipe will appear here.</h3>
+                <p className="mt-3 max-w-lg text-sm leading-6 text-stone-500">Generate a recipe to get tailored ingredients, steps, substitutions, and estimated nutrition in one place.</p>
+              </div>
+            ) : null}
+            {recipeMutation.isPending ? <div className="flex min-h-80 items-center justify-center rounded-3xl bg-fern p-8 text-center text-sm font-bold text-moss">Reviewing your pantry and building a meal plan...</div> : null}
+            {recipeMutation.data ? (
+              <article>
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-100 pb-5">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Your AI recipe</p>
+                    <h3 className="mt-2 text-3xl font-extrabold text-slate">{recipeMutation.data.title}</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-500">{recipeMutation.data.summary}</p>
+                  </div>
+                  <div className="rounded-2xl bg-fern px-4 py-3 text-right">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-moss">Estimated cost</p>
+                    <p className="mt-1 text-2xl font-extrabold text-slate">${Number(recipeMutation.data.estimated_cost).toFixed(2)}</p>
+                  </div>
+                </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl bg-stone-50 p-4"><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-moss">Prep</p><p className="mt-1 text-xl font-extrabold text-slate">{recipeMutation.data.prep_minutes} min</p></div>
+                  <div className="rounded-2xl bg-stone-50 p-4"><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-moss">Cook</p><p className="mt-1 text-xl font-extrabold text-slate">{recipeMutation.data.cook_minutes} min</p></div>
+                  <div className="rounded-2xl bg-stone-50 p-4"><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-moss">Per serving</p><p className="mt-1 text-xl font-extrabold text-slate">~{recipeMutation.data.estimated_calories_per_serving} cal</p></div>
+                </div>
+                <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                  <div>
+                    <h4 className="font-extrabold text-slate">Ingredients</h4>
+                    <div className="mt-3 grid gap-2">
+                      {recipeMutation.data.ingredients.map((ingredient) => <div key={`${ingredient.name}-${ingredient.amount}`} className="flex items-center justify-between rounded-2xl bg-stone-50 px-4 py-3 text-sm"><span className="font-bold text-slate">{ingredient.name}</span><span className={ingredient.from_pantry ? "font-bold text-moss" : "text-stone-500"}>{ingredient.amount}{ingredient.from_pantry ? " - in pantry" : ""}</span></div>)}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-slate">Method</h4>
+                    <ol className="mt-3 grid gap-3">
+                      {recipeMutation.data.steps.map((step, index) => <li key={step} className="flex gap-3 text-sm leading-6 text-stone-600"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-moss text-xs font-extrabold text-white">{index + 1}</span>{step}</li>)}
+                    </ol>
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-3 rounded-3xl bg-sand p-5"><p className="text-sm"><span className="font-extrabold text-slate">Substitutions:</span> {recipeMutation.data.substitutions.join(" ")}</p><p className="text-sm text-stone-600"><span className="font-extrabold text-slate">Nutrition note:</span> {recipeMutation.data.nutrition_note}</p></div>
+              </article>
+            ) : null}
+          </SectionCard>
         </section>
 
         <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">

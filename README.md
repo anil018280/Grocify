@@ -103,6 +103,17 @@ Current service ports:
 - `postgres` -> `127.0.0.1:5432`
 - `redis` -> `127.0.0.1:6379`
 
+## AI Recipe Generation
+
+The Planner can generate a pantry-aware recipe using OpenAI. Add your server-side API key to `.env` before starting Docker:
+
+```text
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-6-astra
+```
+
+The key is used only by the FastAPI backend and is never sent to the React frontend. From the Planner tab, enter cuisine preferences, allergies, servings, and a budget to generate a structured recipe with ingredients, steps, substitutions, and estimated nutrition/cost.
+
 ## Notes
 
 - The root prototype and the React frontend currently coexist.
