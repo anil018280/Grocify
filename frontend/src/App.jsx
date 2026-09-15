@@ -6,6 +6,7 @@ import { useAuth } from "./providers/AuthProvider";
 import plannerHero from "./assets/ai-meal-planner-hero.png";
 
 const tabs = ["inventory", "planner", "budget", "nutrition", "profile"];
+const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const emptyForm = {
   name: "",
@@ -121,6 +122,7 @@ export default function App() {
   const [inventorySearch, setInventorySearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [recipeForm, setRecipeForm] = useState({ preferences: "", allergies: "", servings: 2, budget: 20 });
+  const [selectedPlanDay, setSelectedPlanDay] = useState("Monday");
 
   const pantryQuery = useQuery({
     queryKey: ["pantry"],
@@ -149,6 +151,12 @@ export default function App() {
   const recommendationsQuery = useQuery({
     queryKey: ["recommendations"],
     queryFn: () => apiRequest("/recommendations", { token }),
+    enabled: Boolean(token),
+  });
+
+  const mealPlanQuery = useQuery({
+    queryKey: ["meal-plan"],
+    queryFn: () => apiRequest("/meal-plan", { token }),
     enabled: Boolean(token),
   });
 
@@ -207,6 +215,28 @@ export default function App() {
 
   const recipeMutation = useMutation({
     mutationFn: (payload) => apiRequest("/recommendations/recipe", { method: "POST", body: payload, token }),
+  });
+
+  const scheduleMealMutation = useMutation({
+    mutationFn: ({ day, recipe }) => apiRequest(`/meal-plan/${day}`, {
+      method: "PUT",
+      body: { title: recipe.title, servings: Number(recipeForm.servings), ingredients: recipe.ingredients },
+      token,
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meal-plan"] }),
+  });
+
+  const missingToCartMutation = useMutation({
+    mutationFn: (day) => apiRequest(`/meal-plan/${day}/missing-to-cart`, { method: "POST", token }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meal-plan"] });
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+    },
+  });
+
+  const removeMealMutation = useMutation({
+    mutationFn: (day) => apiRequest(`/meal-plan/${day}`, { method: "DELETE", token }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meal-plan"] }),
   });
 
   const inventoryValue = useMemo(
@@ -322,6 +352,18 @@ export default function App() {
       servings: Number(recipeForm.servings),
       budget: Number(recipeForm.budget),
     });
+  }
+
+  function planExpiringItems() {
+    const urgentNames = pantryItems
+      .filter((item) => Number(item.days_left) <= 3)
+      .sort((a, b) => Number(a.days_left) - Number(b.days_left))
+      .map((item) => item.name);
+    setRecipeForm((current) => ({
+      ...current,
+      preferences: `Create a meal that uses ${urgentNames.join(", ")} first. ${current.preferences}`.trim(),
+    }));
+    updateActiveTab("planner");
   }
 
   function renderInventoryPanel() {
@@ -475,6 +517,7 @@ export default function App() {
 
   function renderPlannerPanel() {
     const recommendations = recommendationsQuery.data;
+    const scheduledMeals = Object.fromEntries((mealPlanQuery.data?.meals ?? []).map((meal) => [meal.day, meal]));
     const riskStyles = {
       low: "bg-emerald-50 text-emerald-700",
       moderate: "bg-amber-50 text-amber-700",
@@ -558,6 +601,19 @@ export default function App() {
                     <p className="mt-1 text-2xl font-extrabold text-slate">${Number(recipeMutation.data.estimated_cost).toFixed(2)}</p>
                   </div>
                 </div>
+                <div className="mt-5 flex flex-wrap items-center gap-3 rounded-3xl bg-slate p-4 text-white">
+                  <div className="min-w-40 flex-1">
+                    <p className="text-sm font-extrabold">Put this recipe on your week</p>
+                    <p className="mt-1 text-xs text-white/70">Schedule it, then add any missing ingredients to your cart.</p>
+                  </div>
+                  <select className="rounded-2xl border-0 bg-white px-4 py-3 font-bold text-slate" value={selectedPlanDay} onChange={(event) => setSelectedPlanDay(event.target.value)}>
+                    {weekDays.map((day) => <option key={day} value={day}>{day}</option>)}
+                  </select>
+                  <button className="rounded-2xl bg-lime-200 px-4 py-3 font-extrabold text-slate disabled:opacity-70" type="button" disabled={scheduleMealMutation.isPending} onClick={() => scheduleMealMutation.mutate({ day: selectedPlanDay, recipe: recipeMutation.data })}>
+                    {scheduleMealMutation.isPending ? "Scheduling..." : "Add to week"}
+                  </button>
+                </div>
+                {scheduleMealMutation.isError ? <p className="mt-3 text-sm font-medium text-red-600">{scheduleMealMutation.error.message}</p> : null}
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl bg-stone-50 p-4"><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-moss">Prep</p><p className="mt-1 text-xl font-extrabold text-slate">{recipeMutation.data.prep_minutes} min</p></div>
                   <div className="rounded-2xl bg-stone-50 p-4"><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-moss">Cook</p><p className="mt-1 text-xl font-extrabold text-slate">{recipeMutation.data.cook_minutes} min</p></div>
@@ -582,6 +638,41 @@ export default function App() {
             ) : null}
           </SectionCard>
         </section>
+
+        <SectionCard className="bg-white">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">This week&apos;s menu</p>
+              <h3 className="mt-2 text-3xl font-extrabold text-slate">Plan it. Cook it. Use it.</h3>
+            </div>
+            <p className="text-sm text-stone-500">{mealPlanQuery.data?.week_start ? `Week of ${new Date(`${mealPlanQuery.data.week_start}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Loading your week..."}</p>
+          </div>
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+            {weekDays.map((day) => {
+              const meal = scheduledMeals[day];
+              return (
+                <article key={day} className={`min-h-48 rounded-3xl border p-4 ${meal ? "border-moss/20 bg-fern" : "border-stone-200 bg-stone-50"}`}>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-moss">{day.slice(0, 3)}</p>
+                  {meal ? (
+                    <div className="mt-4 flex h-[9.5rem] flex-col justify-between">
+                      <div>
+                        <h4 className="font-extrabold leading-5 text-slate">{meal.title}</h4>
+                        <p className="mt-2 text-xs text-stone-500">{meal.servings} servings</p>
+                        <p className="mt-1 text-xs font-bold text-amber-700">{meal.missing_ingredients.length} missing item{meal.missing_ingredients.length === 1 ? "" : "s"}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {meal.missing_ingredients.length ? <button className="rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-moss" type="button" onClick={() => missingToCartMutation.mutate(day)}>Add to cart</button> : null}
+                        <button className="rounded-xl px-2 py-2 text-xs font-bold text-red-600" type="button" onClick={() => removeMealMutation.mutate(day)}>Remove</button>
+                      </div>
+                    </div>
+                  ) : <div className="mt-4 flex h-[9.5rem] items-center text-sm leading-6 text-stone-400">Choose a generated recipe and add it here.</div>}
+                </article>
+              );
+            })}
+          </div>
+          {missingToCartMutation.isError ? <p className="mt-4 text-sm font-medium text-red-600">{missingToCartMutation.error.message}</p> : null}
+          {missingToCartMutation.isSuccess ? <p className="mt-4 text-sm font-bold text-moss">Missing ingredients were added to your cart.</p> : null}
+        </SectionCard>
 
         <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
           <SectionCard className="bg-white">
@@ -692,6 +783,7 @@ export default function App() {
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
   const expiringSoonCount = pantryItems.filter((item) => Number(item.days_left) <= 3).length;
+  const urgentPantryItems = pantryItems.filter((item) => Number(item.days_left) <= 3).sort((a, b) => Number(a.days_left) - Number(b.days_left));
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#f4f9d9,_transparent_34%),linear-gradient(180deg,_#fbfcf7_0%,_#edf4ec_100%)]">
@@ -763,6 +855,24 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          {urgentPantryItems.length ? (
+            <section className="overflow-hidden rounded-[2rem] border border-amber-200 bg-[#fff7e7] shadow-card">
+              <div className="flex flex-col gap-5 p-6 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-amber-800">Expiry alert</p>
+                  <h3 className="mt-2 text-2xl font-extrabold text-slate">Use these ingredients before they go to waste.</h3>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {urgentPantryItems.slice(0, 4).map((item) => <span key={item.id} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-stone-700">{item.name} <span className="text-amber-700">{item.days_left}d left</span></span>)}
+                    {urgentPantryItems.length > 4 ? <span className="rounded-full bg-white px-3 py-2 text-sm font-bold text-stone-500">+{urgentPantryItems.length - 4} more</span> : null}
+                  </div>
+                </div>
+                <button className="shrink-0 rounded-2xl bg-amber-500 px-5 py-3 font-extrabold text-slate transition hover:-translate-y-0.5 hover:bg-amber-400" type="button" onClick={planExpiringItems}>
+                  Create a rescue recipe
+                </button>
+              </div>
+            </section>
+          ) : null}
 
           {renderActivePanel()}
         </main>

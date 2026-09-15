@@ -20,3 +20,4 @@ class User(Base):
     cart_items = relationship("CartItem", back_populates="user", cascade="all, delete-orphan")
     nutrition_entries = relationship("NutritionEntry", back_populates="user", cascade="all, delete-orphan")
     profile = relationship("UserProfile", back_populates="user", cascade="all, delete-orphan", uselist=False)
+    weekly_meal_plans = relationship("WeeklyMealPlan", back_populates="user", cascade="all, delete-orphan")
