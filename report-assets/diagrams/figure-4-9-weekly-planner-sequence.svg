@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="860" viewBox="0 0 1500 860">
+  <defs><style>.title{font:700 32px Arial;fill:#273229}.head{font:700 18px Arial;fill:#273229}.txt{font:16px Arial;fill:#273229}.life{stroke:#7d887e;stroke-dasharray:8 8;stroke-width:2}.arrow{stroke:#2f6b3d;stroke-width:3;marker-end:url(#a)}</style><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2f6b3d"/></marker></defs>
+  <rect width="1500" height="860" fill="#f8fbf7"/><text x="750" y="55" text-anchor="middle" class="title">Figure 4.9. Weekly Meal Planner Sequence Diagram</text>
+  <g class="head"><text x="150" y="115" text-anchor="middle">User</text><text x="480" y="115" text-anchor="middle">React Planner</text><text x="830" y="115" text-anchor="middle">FastAPI API</text><text x="1200" y="115" text-anchor="middle">PostgreSQL</text></g>
+  <g class="life"><line x1="150" y1="140" x2="150" y2="790"/><line x1="480" y1="140" x2="480" y2="790"/><line x1="830" y1="140" x2="830" y2="790"/><line x1="1200" y1="140" x2="1200" y2="790"/></g>
+  <line x1="150" y1="190" x2="480" y2="190" class="arrow"/><text x="225" y="180" class="txt">Select recipe and weekday</text>
+  <line x1="480" y1="290" x2="830" y2="290" class="arrow"/><text x="550" y="280" class="txt">PUT /meal-plan/{day}</text>
+  <line x1="830" y1="390" x2="1200" y2="390" class="arrow"/><text x="900" y="380" class="txt">Save meal and missing ingredients</text>
+  <line x1="1200" y1="460" x2="830" y2="460" class="arrow"/><text x="900" y="450" class="txt">Persisted meal plan</text>
+  <line x1="830" y1="540" x2="480" y2="540" class="arrow"/><text x="560" y="530" class="txt">Updated weekly schedule</text>
+  <line x1="150" y1="640" x2="480" y2="640" class="arrow"/><text x="220" y="630" class="txt">Add missing items to cart</text>
+  <line x1="480" y1="710" x2="830" y2="710" class="arrow"/><text x="550" y="700" class="txt">POST /meal-plan/{day}/missing-to-cart</text>
+  <line x1="830" y1="770" x2="1200" y2="770" class="arrow"/><text x="900" y="760" class="txt">Create non-duplicate cart records</text>
+</svg>

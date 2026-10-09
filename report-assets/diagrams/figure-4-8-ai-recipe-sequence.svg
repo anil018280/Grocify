@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs><style>.title{font:700 32px Arial;fill:#273229}.head{font:700 18px Arial;fill:#273229}.txt{font:16px Arial;fill:#273229}.life{stroke:#7d887e;stroke-dasharray:8 8;stroke-width:2}.arrow{stroke:#2f6b3d;stroke-width:3;marker-end:url(#a)}</style><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2f6b3d"/></marker></defs>
+  <rect width="1600" height="900" fill="#f8fbf7"/><text x="800" y="55" text-anchor="middle" class="title">Figure 4.8. AI Recipe Generation Sequence Diagram</text>
+  <g class="head"><text x="150" y="115" text-anchor="middle">User</text><text x="460" y="115" text-anchor="middle">React Planner</text><text x="800" y="115" text-anchor="middle">FastAPI API</text><text x="1130" y="115" text-anchor="middle">PostgreSQL</text><text x="1450" y="115" text-anchor="middle">OpenAI API</text></g>
+  <g class="life"><line x1="150" y1="140" x2="150" y2="830"/><line x1="460" y1="140" x2="460" y2="830"/><line x1="800" y1="140" x2="800" y2="830"/><line x1="1130" y1="140" x2="1130" y2="830"/><line x1="1450" y1="140" x2="1450" y2="830"/></g>
+  <line x1="150" y1="190" x2="460" y2="190" class="arrow"/><text x="250" y="180" class="txt">Enter preferences, allergies, servings, budget</text>
+  <line x1="460" y1="290" x2="800" y2="290" class="arrow"/><text x="530" y="280" class="txt">POST /recommendations/recipe</text>
+  <line x1="800" y1="390" x2="1130" y2="390" class="arrow"/><text x="860" y="380" class="txt">Load user pantry items</text>
+  <line x1="1130" y1="455" x2="800" y2="455" class="arrow"/><text x="875" y="445" class="txt">Pantry context, ordered by expiry</text>
+  <line x1="800" y1="555" x2="1450" y2="555" class="arrow"/><text x="930" y="545" class="txt">Structured recipe request</text>
+  <line x1="1450" y1="630" x2="800" y2="630" class="arrow"/><text x="930" y="620" class="txt">Validated recipe JSON</text>
+  <line x1="800" y1="710" x2="460" y2="710" class="arrow"/><text x="535" y="700" class="txt">Recipe plan response</text>
+  <line x1="460" y1="790" x2="150" y2="790" class="arrow"/><text x="245" y="780" class="txt">Display recipe, substitutions, estimates</text>
+</svg>
