@@ -1,121 +1,148 @@
 # Grocify
 
-Grocify is an AI-driven grocery planning and food sustainability project for pantry tracking, shopping support, nutrition logging, and meal planning.
+Grocify is an AI-driven grocery planning and food-sustainability application. It helps users organize pantry items, identify ingredients that are expiring soon, generate pantry-first recipes, schedule meals for the week, and build a shopping cart for missing ingredients.
 
-## Current Project State
+## Highlights
 
-The repository currently contains three app layers:
+- Secure user registration and sign-in with JWT authentication
+- Pantry inventory with quantity, category, price, nutrition, and expiry tracking
+- Dashboard summaries for pantry items, expiring ingredients, inventory value, and cart total
+- Expiry alerts and a rescue-recipe flow for ingredients that should be used soon
+- AI recipe generation using preferences, allergies, servings, and budget
+- Weekly meal planning with missing ingredients added to the shopping cart
+- Nutrition logging, budget support, user profiles, and pantry-first recommendations
 
-- A root-level prototype UI served by a small Node server
-- A FastAPI backend with PostgreSQL, Redis, SQLAlchemy, Alembic, and JWT auth
-- A modern React + Vite + Tailwind frontend that is being connected to the backend
+## Tech Stack
 
-## Repository Structure
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React, Vite, Tailwind CSS, TanStack Query |
+| Backend | FastAPI, SQLAlchemy, Alembic, JWT |
+| Data services | PostgreSQL, Redis |
+| AI | OpenAI API with structured recipe responses |
+| Local environment | Docker Compose |
 
-```text
-.
-├── app.js / index.html / styles.css / server.js   # Prototype frontend
-├── backend/                                       # FastAPI backend
-├── data/                                          # Local JSON store for prototype mode
-├── docker-compose.yml                             # Full-stack Docker setup
-└── frontend/                                      # React + Vite frontend
-```
-
-## What's Implemented
-
-- Pantry inventory management flows
-- Shopping cart and grocery planning flows
-- Nutrition tracking endpoints and UI support
-- Freshness- and nutrition-aware meal and shopping recommendations at `/api/v1/recommendations`
-- User authentication with register/login endpoints
-- Profile and blackboard API routes
-- Alembic migration scaffolding and Docker-based infrastructure
-
-## Run Options
-
-### 1. Root Prototype
-
-Run the original prototype frontend and local Node server:
-
-```bash
-npm start
-```
-
-Open:
+## Architecture
 
 ```text
-http://127.0.0.1:8001
+React + Vite frontend
+        |
+        v
+FastAPI API (/api/v1)
+   |        |        |
+   v        v        v
+PostgreSQL Redis   OpenAI API
 ```
 
-### 2. Backend Locally
+## Quick Start With Docker
 
-Use the backend service directly:
+### Prerequisites
+
+- Docker Desktop
+- An OpenAI API key only if you want live AI recipe generation
+
+### 1. Configure environment variables
 
 ```bash
 cp .env.example .env
-python3 -m venv backend/.venv
-backend/.venv/bin/pip install -r backend/requirements.txt
-cd backend
-../backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002
 ```
 
-Health check:
+For live AI recipes, add your key to `.env`:
 
 ```text
-http://127.0.0.1:8002/api/v1/health
+OPENAI_API_KEY=your_api_key_here
 ```
 
-### 3. React Frontend Locally
-
-Start the newer frontend:
+### 2. Start the application
 
 ```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open:
-
-```text
-http://127.0.0.1:5173
-```
-
-## Docker Setup
-
-To run the full stack with Docker:
-
-```bash
-cp .env.example .env
 docker compose up --build
 ```
 
-Then apply migrations:
+In another terminal, apply the database migrations:
 
 ```bash
 docker compose exec api alembic upgrade head
 ```
 
-Current service ports:
+### 3. Open Grocify
 
-- `api` -> `http://127.0.0.1:8002`
-- `frontend` -> `http://127.0.0.1:5173`
-- `postgres` -> `127.0.0.1:5432`
-- `redis` -> `127.0.0.1:6379`
+- Application: `http://127.0.0.1:5173`
+- API documentation: `http://127.0.0.1:8002/docs`
+- API health check: `http://127.0.0.1:8002/api/v1/health`
+
+Use `docker compose down` to stop the stack.
+
+## Run Without Docker
+
+The frontend can be started independently when a compatible API is available:
+
+```bash
+cd frontend
+npm install
+VITE_API_URL=http://127.0.0.1:8002/api/v1 npm run dev
+```
+
+For the backend, install `backend/requirements.txt`, configure PostgreSQL and Redis through `.env`, apply Alembic migrations, and run Uvicorn from `backend/`:
+
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8002 --reload
+```
+
+## Key Workflows
+
+1. Register or sign in.
+2. Add pantry items with expiry and nutrition details.
+3. Review dashboard summaries and expiry alerts.
+4. Use the Planner to generate a pantry-aware recipe.
+5. Add a generated recipe to a day in the weekly meal plan.
+6. Add recipe ingredients missing from the pantry to the cart.
+
+## Repository Structure
+
+```text
+.
+├── backend/             # FastAPI API, models, migrations, and services
+├── frontend/            # React application
+├── meetings/            # Team and advisor meeting records
+├── report-assets/       # Application screenshots and UML diagrams
+├── docker-compose.yml   # Local multi-service environment
+└── .env.example         # Environment-variable template
+```
 
 ## AI Recipe Generation
 
-The Planner can generate a pantry-aware recipe using OpenAI. Add your server-side API key to `.env` before starting Docker:
+The planner sends recipe preferences, allergies, serving count, budget, and pantry context to the FastAPI backend. The backend calls the OpenAI API and validates a structured response before returning the recipe to the frontend.
 
-```text
-OPENAI_API_KEY=your_key_here
-OPENAI_MODEL=gpt-6-astra
-```
+Recipe and nutrition values are estimates and are not medical or dietary advice. If `OPENAI_API_KEY` is not configured, all non-AI application features remain available, while live recipe generation displays an error message.
 
-The key is used only by the FastAPI backend and is never sent to the React frontend. From the Planner tab, enter cuisine preferences, allergies, servings, and a budget to generate a structured recipe with ingredients, steps, substitutions, and estimated nutrition/cost.
+## Roadmap
 
-## Notes
+The following improvements are planned and are not yet part of the completed feature set.
 
-- The root prototype and the React frontend currently coexist.
-- The backend is available under `/api/v1/*`.
-- Local environment files, virtual environments, `node_modules`, and Python cache files are ignored via `.gitignore`.
+### Product Enhancements
+
+- [ ] Add configurable email or push notifications for ingredients approaching expiry.
+- [ ] Support multiple pantry locations, such as home, dorm, or shared household.
+- [ ] Add barcode scanning and receipt import to speed up pantry entry.
+- [ ] Add household sharing with invited users and role-based access.
+- [ ] Connect grocery-store or price-comparison APIs for more accurate cart estimates.
+
+### AI And Meal Planning
+
+- [ ] Let users save, rate, and revisit generated recipes.
+- [ ] Generate a complete weekly menu that balances dietary preferences, budget, and nutrition targets.
+- [ ] Add recipe regeneration controls for cuisine, preparation time, and available appliances.
+- [ ] Improve nutrition estimates with a verified food-nutrition data provider.
+
+### Quality, Security, And Deployment
+
+- [ ] Add automated frontend, backend, and end-to-end test coverage.
+- [ ] Add API rate limiting, audit logging, and production-ready secret management.
+- [ ] Add accessibility testing and keyboard-navigation improvements.
+- [ ] Deploy the frontend, API, database, and Redis services to a managed cloud environment.
+- [ ] Add CI checks for tests, linting, and Docker image builds.
+
+## Report Assets
+
+The `report-assets/` folder contains Chapter 4 screenshots and UML diagrams used by the project report. The `meetings/` folder contains the team and advisor meeting records.

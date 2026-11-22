@@ -1,34 +1,75 @@
 # Grocify Backend
 
-This backend matches the architecture described in the project contribution report:
+The Grocify backend is a FastAPI service that provides authentication, pantry management, cart and nutrition tracking, pantry recommendations, AI recipe generation, and weekly meal planning.
 
-- `FastAPI` API layer
-- `PostgreSQL` with `SQLAlchemy`
-- `Alembic` migrations
-- `Redis` Blackboard store with lock + TTL support
-- `JWT` authentication
+## Stack
 
-## Run locally
+- FastAPI and Uvicorn
+- PostgreSQL with SQLAlchemy
+- Alembic database migrations
+- Redis for the Blackboard store and coordination support
+- JWT authentication
+- OpenAI API for structured recipe generation
 
-1. Copy `.env.example` to `.env`
-2. Start infrastructure:
+## Run With Docker
+
+From the repository root:
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
-3. Apply migrations inside the API container:
+Apply migrations after the services start:
 
 ```bash
 docker compose exec api alembic upgrade head
 ```
 
-4. Open the API docs:
+The API is available at:
 
-```text
-http://127.0.0.1:8000/docs
+- Interactive documentation: `http://127.0.0.1:8002/docs`
+- Health endpoint: `http://127.0.0.1:8002/api/v1/health`
+
+## Run Locally
+
+Create and activate a Python virtual environment, then install dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## Notes
+Set the required PostgreSQL, Redis, JWT, and optional OpenAI settings in the root `.env` file. Apply migrations from `backend/`, then start Uvicorn:
 
-The current root-level `index.html`/`app.js` frontend is still the prototype UI. The next migration step is to connect that frontend to `/api/v1/*` or replace it with the Vite + Tailwind frontend described in the report.
+```bash
+alembic upgrade head
+uvicorn app.main:app --host 127.0.0.1 --port 8002 --reload
+```
+
+## API Areas
+
+| Route prefix | Purpose |
+| --- | --- |
+| `/api/v1/auth` | Register and sign in users |
+| `/api/v1/pantry` | Create and manage pantry data |
+| `/api/v1/cart` | Manage shopping-cart items |
+| `/api/v1/nutrition` | Store nutrition entries and targets |
+| `/api/v1/profile` | Manage user preferences |
+| `/api/v1/recommendations` | Pantry-aware recommendations and AI recipes |
+| `/api/v1/meal-plan` | Weekly meal scheduling and missing-item cart updates |
+| `/api/v1/health` | Service health check |
+
+## AI Configuration
+
+Add the following settings to the root `.env` file to enable live recipe generation:
+
+```text
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=gpt-6-astra
+```
+
+The API key is read only by the backend. The recipe service validates structured responses before returning ingredients, steps, substitutions, estimated cost, and nutrition notes to the frontend.
+
+If an API key is unavailable, authentication, inventory, cart, nutrition, and weekly-planning endpoints continue to work; only live AI recipe generation is unavailable.
