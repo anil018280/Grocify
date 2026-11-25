@@ -9,6 +9,7 @@ STORE_PROFILES = [
 
 
 def compare_cart_prices(cart_items: list[CartItem]) -> dict:
+    """Compare estimated cart totals across regional grocery stores."""
     base_total = sum(float(item.quantity) * float(item.price) for item in cart_items)
     stores = []
     for profile in STORE_PROFILES:
