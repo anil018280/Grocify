@@ -8,3 +8,5 @@ backend/.venv/
 backend/.venv310/
 frontend/node_modules/
 node_modules/
+frontend/dist/
+Grocify-Presentation-Notes.pdf
