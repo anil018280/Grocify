@@ -106,7 +106,7 @@ def simulate_fridge_door_event(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Simulate a fridge-door-open light/camera trigger that auto-detects and updates pantry inventory."""
-    scan_result = scan_pantry_photo(payload.image_data_url or "", scan_type="pantry")
+    scan_result = scan_pantry_photo(payload.image_data_url or "", scan_type="pantry", scenario=payload.scenario)
     existing_items = db.scalars(select(PantryItem).where(PantryItem.user_id == current_user.id)).all()
     by_name = {item.name.lower(): item for item in existing_items}
 

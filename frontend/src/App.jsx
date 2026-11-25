@@ -157,7 +157,10 @@ export default function App() {
   const [showPhotoScanner, setShowPhotoScanner] = useState(false);
   const [showFridgeSim, setShowFridgeSim] = useState(false);
   const [fridgeDoorOpen, setFridgeDoorOpen] = useState(false);
+  const [fridgeSnapshot, setFridgeSnapshot] = useState("produce");
+  const [customFridgeFrame, setCustomFridgeFrame] = useState("");
   const [fridgeEventLog, setFridgeEventLog] = useState([]);
+  const fridgeFileInputRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [photoPreview, setPhotoPreview] = useState("");
@@ -731,18 +734,75 @@ export default function App() {
                   disabled={fridgeDoorMutation.isPending}
                   onClick={() => {
                     setFridgeDoorOpen(true);
-                    fridgeDoorMutation.mutate({ scenario: "restock" }, {
-                      onSettled: () => setTimeout(() => setFridgeDoorOpen(false), 2200),
-                    });
+                    fridgeDoorMutation.mutate(
+                      {
+                        scenario: fridgeSnapshot,
+                        image_data_url: fridgeSnapshot === "custom" && customFridgeFrame ? customFridgeFrame : null,
+                      },
+                      { onSettled: () => setTimeout(() => setFridgeDoorOpen(false), 2200) }
+                    );
                   }}
                 >
                   {fridgeDoorMutation.isPending ? "Light ON • Scanning shelves..." : fridgeDoorOpen ? "Door Open • Syncing..." : "Simulate Door Open"}
                 </button>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: "produce", label: "Fresh Produce Shelf" },
+                  { id: "indian", label: "Indian Prep Shelf" },
+                  { id: "mealprep", label: "Meal-Prep & Leftovers" },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setFridgeSnapshot(opt.id)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${fridgeSnapshot === opt.id ? "bg-moss text-white" : "bg-white text-stone-600 hover:bg-stone-100"}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => fridgeFileInputRef.current?.click()}
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${fridgeSnapshot === "custom" ? "bg-slate text-white" : "bg-white text-stone-600 hover:bg-stone-100"}`}
+                >
+                  Upload custom picture
+                </button>
+                <input
+                  ref={fridgeFileInputRef}
+                  className="hidden"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const img = new Image();
+                      img.onload = () => {
+                        const dataUrl = resizeSourceToDataUrl(img, img.width, img.height);
+                        setCustomFridgeFrame(dataUrl);
+                        setFridgeSnapshot("custom");
+                      };
+                      img.src = String(reader.result || "");
+                    };
+                    reader.readAsDataURL(file);
+                    event.target.value = "";
+                  }}
+                />
+              </div>
               <div className="grid gap-4 md:grid-cols-[0.42fr_0.58fr]">
                 <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-slate">
                   <img
-                    src="/sample-fridge.jpg"
+                    src={
+                      fridgeSnapshot === "custom" && customFridgeFrame
+                        ? customFridgeFrame
+                        : fridgeSnapshot === "indian"
+                        ? "/sample-fridge-indian.jpg"
+                        : fridgeSnapshot === "mealprep"
+                        ? "/sample-fridge-leftovers.jpg"
+                        : "/sample-fridge.jpg"
+                    }
                     alt="Simulated internal fridge camera"
                     className={`h-48 w-full object-cover transition-all duration-300 ${fridgeDoorOpen ? "brightness-110 contrast-105" : "brightness-50 grayscale"}`}
                   />

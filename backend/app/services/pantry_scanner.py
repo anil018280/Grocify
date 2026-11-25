@@ -34,7 +34,7 @@ def _with_computed_expiry(result: PantryScanResponse) -> PantryScanResponse:
     return result
 
 
-def _fallback_scan(scan_type: str) -> PantryScanResponse:
+def _fallback_scan(scan_type: str, scenario: str = "produce") -> PantryScanResponse:
     today = date.today()
     if scan_type == "receipt":
         raw_items = [
@@ -45,13 +45,28 @@ def _fallback_scan(scan_type: str) -> PantryScanResponse:
             ("Sourdough Bread", 1, "loaf", "Grains", 6, 4.49, 130, 5, 25, 1, 2),
         ]
         summary = "Demo receipt scan (OpenAI quota exceeded): extracted items and calculated expiry dates from purchase date."
+    elif scenario == "indian":
+        raw_items = [
+            ("Paneer (Indian Cottage Cheese)", 1, "pack", "Dairy", 3, 4.99, 265, 18, 4, 20, 0),
+            ("Fresh Cilantro (Coriander)", 1, "bunch", "Produce", 2, 1.49, 5, 0, 1, 0, 1),
+            ("Mint Cilantro Chutney", 1, "jar", "Pantry", 5, 3.49, 35, 1, 6, 1, 1),
+            ("Fresh Curry Leaves", 1, "pack", "Produce", 3, 1.99, 10, 1, 2, 0, 1),
+        ]
+        summary = "Fridge camera detected Indian prep shelf items and updated expiry dates."
+    elif scenario == "mealprep":
+        raw_items = [
+            ("Grilled Chicken Rice Bowl", 2, "containers", "Protein", 2, 6.50, 420, 36, 42, 11, 4),
+            ("Almond Milk (Unsweetened)", 1, "carton", "Dairy", 7, 3.79, 30, 1, 1, 3, 1),
+            ("Fresh Blueberries", 1, "pint", "Produce", 3, 3.99, 84, 1, 21, 0, 4),
+        ]
+        summary = "Fridge camera detected meal-prep containers and leftovers with 2–7d shelf life."
     else:
         raw_items = [
             ("Fresh Broccoli", 2, "heads", "Produce", 4, 2.99, 31, 3, 6, 0, 2),
             ("Greek Yogurt", 1, "tub", "Dairy", 6, 4.99, 130, 17, 6, 4, 0),
             ("Bell Peppers", 3, "pcs", "Produce", 5, 3.49, 30, 1, 7, 0, 2),
         ]
-        summary = "Demo fridge/pantry scan (OpenAI quota exceeded): detected sample items with estimated shelf life."
+        summary = "Fridge camera detected fresh produce & dairy shelf items."
 
     items = [
         ScannedPantryItem(
@@ -71,9 +86,9 @@ def _fallback_scan(scan_type: str) -> PantryScanResponse:
     return PantryScanResponse(summary=summary, items=items)
 
 
-def scan_pantry_photo(image_data_url: str, scan_type: str = "auto") -> PantryScanResponse:
-    if not settings.openai_api_key:
-        return _fallback_scan(scan_type)
+def scan_pantry_photo(image_data_url: str, scan_type: str = "auto", scenario: str = "produce") -> PantryScanResponse:
+    if not settings.openai_api_key or not image_data_url.startswith("data:image/"):
+        return _fallback_scan(scan_type, scenario=scenario)
 
     instructions = AUTO_SCAN_INSTRUCTIONS
     prompt_text = (
@@ -109,4 +124,4 @@ def scan_pantry_photo(image_data_url: str, scan_type: str = "auto") -> PantrySca
         parsed = PantryScanResponse.model_validate_json(response.output_text)
         return _with_computed_expiry(parsed)
     except Exception:
-        return _fallback_scan(scan_type)
+        return _fallback_scan(scan_type, scenario=scenario)
