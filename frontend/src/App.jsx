@@ -190,12 +190,6 @@ export default function App() {
     enabled: Boolean(token),
   });
 
-  const healthQuery = useQuery({
-    queryKey: ["health"],
-    queryFn: () => apiRequest("/health"),
-    enabled: Boolean(token),
-  });
-
   const pantryItems = pantryQuery.data?.pantry ?? [];
   const cartItems = cartQuery.data?.cart_items ?? [];
   const nutrition = nutritionQuery.data ?? { calorie_target: 2000, calorie_entries: [] };
@@ -1386,29 +1380,12 @@ export default function App() {
 
         <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <SectionCard>
-            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Workspace &amp; system</p>
-            <h3 className="mt-2 text-2xl font-extrabold text-slate">Settings &amp; architecture</h3>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Workspace</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">Display settings</h3>
             <p className="mt-2 text-sm text-stone-500">Focus mode: {profile.focused_mode ? "On" : "Off"}.</p>
             <button className="mt-4 rounded-2xl bg-fern px-4 py-2.5 text-sm font-extrabold text-moss transition hover:bg-stone-100" type="button" onClick={toggleFocusedMode}>
               {profile.focused_mode ? "Disable focus mode" : "Enable focus mode"}
             </button>
-            <div className="mt-6 border-t border-stone-100 pt-5">
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">System architecture status</p>
-              <div className="mt-3 grid gap-2 text-sm">
-                <div className="flex items-center justify-between rounded-2xl bg-fern px-4 py-2.5">
-                  <span className="font-bold text-slate">FastAPI Backend</span>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700">{healthQuery.data?.status === "ok" ? "Online" : "Checking..."}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-fern px-4 py-2.5">
-                  <span className="font-bold text-slate">PostgreSQL Database</span>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700">{healthQuery.data?.database || "checking"}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-fern px-4 py-2.5">
-                  <span className="font-bold text-slate">Redis Blackboard Cache</span>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700">{healthQuery.data?.redis || "checking"}</span>
-                </div>
-              </div>
-            </div>
           </SectionCard>
           <SectionCard>
             <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Account</p>
