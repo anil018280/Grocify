@@ -21,6 +21,7 @@ USDA_REFERENCE = {
 
 
 def lookup_verified_nutrition(query: str) -> dict:
+    """Look up verified nutrition facts from USDA reference data or OpenFoodFacts."""
     q = query.strip().lower()
     for key, entry in USDA_REFERENCE.items():
         if key in q or q in key:
