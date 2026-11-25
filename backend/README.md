@@ -53,12 +53,12 @@ uvicorn app.main:app --host 127.0.0.1 --port 8002 --reload
 | Route prefix | Purpose |
 | --- | --- |
 | `/api/v1/auth` | Register and sign in users |
-| `/api/v1/pantry` | Create and manage pantry data |
-| `/api/v1/cart` | Manage shopping-cart items |
-| `/api/v1/nutrition` | Store nutrition entries and targets |
-| `/api/v1/profile` | Manage user preferences |
-| `/api/v1/recommendations` | Pantry-aware recommendations and AI recipes |
-| `/api/v1/meal-plan` | Weekly meal scheduling and missing-item cart updates |
+| `/api/v1/pantry` | Create and manage pantry data, locations, barcode lookup, photo/receipt scan, and fridge simulator |
+| `/api/v1/cart` | Manage shopping-cart items and store price comparison |
+| `/api/v1/nutrition` | Store nutrition entries, targets, and USDA/OpenFoodFacts lookup |
+| `/api/v1/profile` | Manage household preferences, expiry notifications, and RBAC sharing |
+| `/api/v1/recommendations` | Pantry-aware recommendations (Redis cached), AI recipes, and saved/rated recipes |
+| `/api/v1/meal-plan` | Weekly meal scheduling, 7-day auto-generation, mark cooked, and cart updates |
 | `/api/v1/health` | Service health check |
 
 ## AI Configuration
