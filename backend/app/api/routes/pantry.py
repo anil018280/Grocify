@@ -105,17 +105,22 @@ def simulate_fridge_door_event(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    """Simulate a fridge-door-open light/camera trigger that auto-detects and updates pantry inventory."""
-    scan_result = scan_pantry_photo(payload.image_data_url or "", scan_type="pantry", scenario=payload.scenario)
+    """Simulate a dual-camera fridge-door-open trigger (main shelf + side-door sauce rack)."""
+    shelf_scan = scan_pantry_photo(payload.image_data_url or "", scan_type="pantry", scenario=payload.scenario)
+    door_scan = scan_pantry_photo("", scan_type="pantry", scenario="door_sauces")
+
     existing_items = db.scalars(select(PantryItem).where(PantryItem.user_id == current_user.id)).all()
     by_name = {item.name.lower(): item for item in existing_items}
 
     added: list[str] = []
     updated: list[str] = []
+    door_sauces_detected: list[str] = []
 
-    for detected in scan_result.items:
+    def _upsert(detected, is_door: bool = False) -> None:
         key = detected.name.strip().lower()
         match = by_name.get(key)
+        if is_door:
+            door_sauces_detected.append(detected.name)
         if match:
             match.quantity = round(float(match.quantity) + 1.0, 2)
             match.days_left = min(int(match.days_left), max(0, int(detected.days_left)))
@@ -133,7 +138,13 @@ def simulate_fridge_door_event(
                 nutrition=detected.nutrition.model_dump(),
             )
             db.add(new_item)
+            by_name[key] = new_item
             added.append(detected.name)
+
+    for item in shelf_scan.items:
+        _upsert(item, is_door=False)
+    for item in door_scan.items:
+        _upsert(item, is_door=True)
 
     db.commit()
     blackboard.invalidate(current_user.id, "recommendations")
@@ -142,10 +153,11 @@ def simulate_fridge_door_event(
     return {
         "event_id": f"fridge-{int(datetime.now(timezone.utc).timestamp())}",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "trigger": "Fridge Door Opened -> Light ON -> Camera Captured",
-        "summary": scan_result.summary,
+        "trigger": "Fridge Door Opened -> Light ON -> Main Shelf + Side-Door Sauce Cam Captured",
+        "summary": f"{shelf_scan.summary} {door_scan.summary}",
         "added_items": added,
         "updated_items": updated,
+        "door_sauces_detected": door_sauces_detected,
         "total_pantry_count": len(refreshed.pantry),
         "pantry": refreshed.pantry,
     }

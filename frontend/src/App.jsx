@@ -791,7 +791,7 @@ export default function App() {
                   }}
                 />
               </div>
-              <div className="grid gap-4 md:grid-cols-[0.42fr_0.58fr]">
+              <div className="grid gap-4 lg:grid-cols-[0.34fr_0.34fr_0.32fr]">
                 <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-slate">
                   <img
                     src={
@@ -803,11 +803,21 @@ export default function App() {
                         ? "/sample-fridge-leftovers.jpg"
                         : "/sample-fridge.jpg"
                     }
-                    alt="Simulated internal fridge camera"
+                    alt="Simulated main shelf fridge camera"
                     className={`h-48 w-full object-cover transition-all duration-300 ${fridgeDoorOpen ? "brightness-110 contrast-105" : "brightness-50 grayscale"}`}
                   />
                   <div className="absolute bottom-2 left-2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white">
-                    {fridgeDoorOpen ? "REC • Auto-detecting items..." : "Door Closed • Camera Asleep"}
+                    {fridgeDoorOpen ? "Cam 1: Main Shelf • Scanning" : "Cam 1: Main Shelf (Asleep)"}
+                  </div>
+                </div>
+                <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-slate">
+                  <img
+                    src="/sample-fridge-door-sauces.jpg"
+                    alt="Simulated side door rack sauces camera"
+                    className={`h-48 w-full object-cover transition-all duration-300 ${fridgeDoorOpen ? "brightness-110 contrast-105" : "brightness-50 grayscale"}`}
+                  />
+                  <div className="absolute bottom-2 left-2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white">
+                    {fridgeDoorOpen ? "Cam 2: Side Door Sauces • Scanning" : "Cam 2: Side Door Sauces (Asleep)"}
                   </div>
                 </div>
                 <div className="space-y-2 rounded-2xl border border-stone-200 bg-white p-4">
@@ -818,13 +828,18 @@ export default function App() {
                         <div key={ev.event_id} className="rounded-xl bg-fern px-3 py-2 text-xs">
                           <p className="font-bold text-slate">{ev.trigger}</p>
                           <p className="mt-0.5 text-stone-600">
-                            Added: {ev.added_items.length ? ev.added_items.join(", ") : "None"} • Updated: {ev.updated_items.length ? ev.updated_items.join(", ") : "None"} • Total pantry: {ev.total_pantry_count}
+                            Added: {ev.added_items.length ? ev.added_items.join(", ") : "None"} • Updated: {ev.updated_items.length ? ev.updated_items.join(", ") : "None"}
                           </p>
+                          {ev.door_sauces_detected?.length ? (
+                            <p className="mt-0.5 font-semibold text-moss">
+                              Side-door sauces scanned: {ev.door_sauces_detected.join(", ")}
+                            </p>
+                          ) : null}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-stone-500">Click &ldquo;Simulate Door Open&rdquo; to trigger the fridge light + camera and watch your pantry update automatically.</p>
+                    <p className="text-xs text-stone-500">Click &ldquo;Simulate Door Open&rdquo; to trigger both the main shelf camera and the side-door sauce rack camera.</p>
                   )}
                 </div>
               </div>

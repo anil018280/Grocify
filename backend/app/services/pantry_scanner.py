@@ -8,7 +8,7 @@ from app.schemas.pantry import PantryScanResponse, ScannedPantryItem, ScannedPan
 
 AUTO_SCAN_INSTRUCTIONS = """
 You are Grocify's unified grocery vision assistant. Automatically detect whether the uploaded image is:
-1) a fridge or pantry photo,
+1) a fridge or pantry photo (including main shelves AND side-door racks with sauces, condiments, dressings, jars, and bottles),
 2) a physical grocery store receipt, or
 3) an online grocery order screenshot (e.g., Instacart, Amazon Fresh, Walmart, Target).
 
@@ -60,6 +60,14 @@ def _fallback_scan(scan_type: str, scenario: str = "produce") -> PantryScanRespo
             ("Fresh Blueberries", 1, "pint", "Produce", 3, 3.99, 84, 1, 21, 0, 4),
         ]
         summary = "Fridge camera detected meal-prep containers and leftovers with 2–7d shelf life."
+    elif scenario == "door_sauces":
+        raw_items = [
+            ("Soy Sauce (Low Sodium)", 1, "bottle", "Condiments", 120, 3.49, 10, 1, 1, 0, 0),
+            ("Sriracha Chili Sauce", 1, "bottle", "Condiments", 90, 4.29, 5, 0, 1, 0, 0),
+            ("Tamarind Date Chutney", 1, "jar", "Condiments", 14, 3.99, 45, 0, 11, 0, 1),
+            ("Dijon Mustard", 1, "jar", "Condiments", 60, 3.29, 10, 0, 1, 0, 0),
+        ]
+        summary = "Side-door rack camera detected sauces & condiments (soy sauce, sriracha, chutney, mustard)."
     else:
         raw_items = [
             ("Fresh Broccoli", 2, "heads", "Produce", 4, 2.99, 31, 3, 6, 0, 2),
