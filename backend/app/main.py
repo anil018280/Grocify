@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.agents import router as agents_router
 from app.api.routes import auth, blackboard, cart, health, meal_plan, nutrition, pantry, profile, recommendations
 from app.core.config import settings
+from app.mcp import router as mcp_router
 
 
 app = FastAPI(title=settings.project_name)
@@ -24,3 +26,5 @@ app.include_router(profile.router, prefix=settings.api_v1_prefix)
 app.include_router(blackboard.router, prefix=settings.api_v1_prefix)
 app.include_router(recommendations.router, prefix=settings.api_v1_prefix)
 app.include_router(meal_plan.router, prefix=settings.api_v1_prefix)
+app.include_router(agents_router)
+app.include_router(mcp_router)

@@ -5,7 +5,7 @@ import { apiRequest } from "./lib/api";
 import { useAuth } from "./providers/AuthProvider";
 import plannerHero from "./assets/ai-meal-planner-hero.png";
 
-const tabs = ["dashboard", "inventory", "planner", "budget", "nutrition", "profile"];
+const tabs = ["dashboard", "agents", "inventory", "planner", "budget", "nutrition", "profile"];
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const pantryLocations = ["Home", "Dorm", "Shared Household", "Freezer"];
 const applianceOptions = ["Stovetop", "Oven", "Air Fryer", "Instant Pot", "Microwave"];
@@ -134,6 +134,7 @@ export default function App() {
   const [inviteForm, setInviteForm] = useState({ member_name: "", member_email: "", role: "Editor" });
   const [notifyForm, setNotifyForm] = useState({ notify_email_enabled: true, notify_push_enabled: false, notify_days_threshold: 3, notification_email: "" });
   const [notifyStatusMsg, setNotifyStatusMsg] = useState("");
+  const [agentGoal, setAgentGoal] = useState("Plan tonight's dinner using expiring items, check nutrition, and compare store prices");
   const [cartForm, setCartForm] = useState({ name: "", quantity: 1, price: 2.5 });
   const [weeklyBudget, setWeeklyBudget] = useState(() => {
     const saved = window.localStorage.getItem("grocify_weekly_budget");
@@ -225,6 +226,18 @@ export default function App() {
   const wasteQuery = useQuery({
     queryKey: ["waste-log"],
     queryFn: () => apiRequest("/pantry/waste-log", { token }),
+    enabled: Boolean(token),
+  });
+
+  const agentRegistryQuery = useQuery({
+    queryKey: ["agent-registry"],
+    queryFn: () => apiRequest("/agents/registry", { token }),
+    enabled: Boolean(token),
+  });
+
+  const mcpToolsQuery = useQuery({
+    queryKey: ["mcp-tools"],
+    queryFn: () => apiRequest("/mcp/tools", { token }),
     enabled: Boolean(token),
   });
 
@@ -367,6 +380,10 @@ export default function App() {
       queryClient.invalidateQueries({ queryKey: ["recommendations"] });
       queryClient.invalidateQueries({ queryKey: ["waste-log"] });
     },
+  });
+
+  const runAgentsMutation = useMutation({
+    mutationFn: (goal) => apiRequest("/agents/run", { method: "POST", body: { goal }, token }),
   });
 
   const priceCompareMutation = useMutation({
@@ -2201,9 +2218,156 @@ export default function App() {
     );
   }
 
+  function renderAgentsPanel() {
+    const result = runAgentsMutation.data;
+    const registry = agentRegistryQuery.data?.agents ?? [];
+    const mcpTools = mcpToolsQuery.data?.tools ?? [];
+
+    return (
+      <div className="space-y-6">
+        <SectionCard className="bg-slate text-white">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-lime-200">Agentic AI + MCP Architecture</p>
+              <h3 className="mt-2 text-3xl font-extrabold">Grocify Multi-Agent Assistant</h3>
+              <p className="mt-2 max-w-2xl text-sm text-white/75">
+                Orchestrator delegates to Inventory, Meal Recommender, Planner, Nutrition, Budget, and Sustainability agents—running deterministic work as MCP tools and synthesizing via Advocate &rarr; Critic &rarr; Aggregator.
+              </p>
+            </div>
+            <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-extrabold text-lime-200">
+              {mcpTools.length} MCP Tools • {registry.length} Agents
+            </span>
+          </div>
+
+          <form
+            className="mt-5 flex flex-wrap gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!agentGoal.trim()) return;
+              runAgentsMutation.mutate(agentGoal.trim());
+            }}
+          >
+            <input
+              className="min-w-64 flex-1 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder-white/50 outline-none focus:border-lime-200"
+              placeholder="Ask Grocify Assistant (e.g. Plan dinner from expiring items under $15)..."
+              value={agentGoal}
+              onChange={(e) => setAgentGoal(e.target.value)}
+            />
+            <button
+              className="rounded-2xl bg-lime-200 px-5 py-3 text-sm font-extrabold text-slate transition hover:bg-white disabled:opacity-60"
+              type="submit"
+              disabled={runAgentsMutation.isPending}
+            >
+              {runAgentsMutation.isPending ? "Agents reasoning..." : "Run Multi-Agent Plan"}
+            </button>
+          </form>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              "Plan tonight's dinner using expiring items, check nutrition, and compare store prices",
+              "Audit my food waste, CO2e impact, and weekly budget",
+              "Optimize my weekly meal plan for Indian cuisine and protein",
+            ].map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => {
+                  setAgentGoal(prompt);
+                  runAgentsMutation.mutate(prompt);
+                }}
+                className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:bg-white/20"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </SectionCard>
+
+        {result ? (
+          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="space-y-6">
+              <SectionCard className="border-moss/20 bg-fern">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Aggregator Synthesis</p>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-moss">{result.mode}</span>
+                </div>
+                <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-6 text-slate">{result.final_plan}</pre>
+              </SectionCard>
+
+              <SectionCard>
+                <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Agent Execution Pipeline</p>
+                <h3 className="mt-1 text-xl font-extrabold text-slate">Orchestrator &rarr; Specialists &rarr; Debate</h3>
+                <div className="mt-4 grid gap-2.5">
+                  {result.agent_steps.map((step, idx) => (
+                    <div key={`${step.agent}-${idx}`} className="rounded-2xl border border-stone-200 bg-stone-50 p-3.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-extrabold text-slate">{step.agent}</span>
+                        <span className="rounded-full bg-fern px-2.5 py-0.5 text-[11px] font-bold text-moss">{step.layer}</span>
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-stone-600">{step.output}</p>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </div>
+
+            <SectionCard>
+              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">MCP Tool Call Trace</p>
+              <h3 className="mt-1 text-xl font-extrabold text-slate">Deterministic Tool Executions</h3>
+              <div className="mt-4 grid gap-2.5">
+                {result.mcp_tool_calls.map((call, idx) => (
+                  <div key={`${call.tool}-${idx}`} className="rounded-2xl bg-fern p-3.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-extrabold text-moss">{call.tool}()</span>
+                      <span className="font-bold text-stone-500">{call.latency_ms} ms</span>
+                    </div>
+                    <p className="mt-1 text-slate">{call.summary}</p>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          </div>
+        ) : null}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Agent Registry</p>
+            <h3 className="mt-1 text-xl font-extrabold text-slate">Active Reasoning Agents ({registry.length})</h3>
+            <div className="mt-4 grid gap-2">
+              {registry.map((ag) => (
+                <div key={ag.id} className="flex items-center justify-between rounded-2xl bg-stone-50 px-4 py-2.5 text-xs">
+                  <div>
+                    <p className="font-bold text-slate">{ag.name}</p>
+                    <p className="text-stone-500">{ag.mcp_tools.length ? `MCP: ${ag.mcp_tools.join(", ")}` : "Reasoning / Synthesis"}</p>
+                  </div>
+                  <span className="rounded-full bg-fern px-2.5 py-1 font-bold text-moss">{ag.layer}</span>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Grocify MCP Server (/mcp)</p>
+            <h3 className="mt-1 text-xl font-extrabold text-slate">Deterministic MCP Tools ({mcpTools.length})</h3>
+            <div className="mt-4 grid gap-2">
+              {mcpTools.map((tool) => (
+                <div key={tool.name} className="rounded-2xl bg-fern px-4 py-2.5 text-xs">
+                  <p className="font-mono font-extrabold text-moss">{tool.name}</p>
+                  <p className="mt-0.5 text-stone-600">{tool.description}</p>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </div>
+      </div>
+    );
+  }
+
   function renderActivePanel() {
     if (activeTab === "dashboard") {
       return renderDashboardPanel();
+    }
+    if (activeTab === "agents") {
+      return renderAgentsPanel();
     }
     if (activeTab === "budget") {
       return renderBudgetPanel();
@@ -2244,7 +2408,7 @@ export default function App() {
                 onClick={() => updateActiveTab(tab)}
                 className={`whitespace-nowrap rounded-2xl px-4 py-3 text-left font-bold capitalize transition xl:w-full ${activeTab === tab ? "bg-gradient-to-r from-moss to-[#245a35] text-white shadow-lg shadow-moss/20" : "bg-fern text-stone-600 hover:bg-stone-100"}`}
               >
-                {tab === "dashboard" ? "Home Dashboard" : tab}
+                {tab === "dashboard" ? "Home Dashboard" : tab === "agents" ? "AI Agents & MCP" : tab}
               </button>
             ))}
           </nav>
