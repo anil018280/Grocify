@@ -5,12 +5,15 @@ Grocify is an AI-driven grocery planning and food-sustainability application. It
 ## Highlights
 
 - Secure user registration and sign-in with JWT authentication
-- Pantry inventory with quantity, category, price, nutrition, and expiry tracking
+- Pantry inventory with quantity, category, location (`Home`, `Dorm`, `Shared Household`, `Freezer`), price, nutrition, and expiry tracking
+- Smart Fridge Door Camera Simulator (Main Shelf, Side-Door Sauces, and Deep Freezer auto-sync)
+- Barcode scanning (OpenFoodFacts) and unified photo/receipt/order-screenshot expiry calculation
 - Dashboard summaries for pantry items, expiring ingredients, inventory value, and cart total
-- Expiry alerts and a rescue-recipe flow for ingredients that should be used soon
-- AI recipe generation using preferences, allergies, servings, and budget
-- Weekly meal planning with missing ingredients added to the shopping cart
-- Nutrition logging, budget support, user profiles, and pantry-first recommendations
+- Expiry alerts, configurable email/push notifications, and a rescue-recipe flow
+- AI recipe generation with prep-time & appliance controls, saved/rated recipes, and full 7-day weekly menu generation
+- Weekly meal planning with one-click Mark Cooked (pantry deduction + nutrition log) and non-duplicate missing-item cart updates
+- Budget planner with regional store price comparison and one-click Checkout & Restock Pantry
+- Nutrition logging with verified USDA FoodData reference lookup, household profile, and RBAC sharing
 
 ## Tech Stack
 
@@ -122,26 +125,26 @@ The following improvements are planned and are not yet part of the completed fea
 
 ### Product Enhancements
 
-- [ ] Add configurable email or push notifications for ingredients approaching expiry.
-- [ ] Support multiple pantry locations, such as home, dorm, or shared household.
-- [ ] Add barcode scanning and receipt import to speed up pantry entry.
-- [ ] Add household sharing with invited users and role-based access.
-- [ ] Connect grocery-store or price-comparison APIs for more accurate cart estimates.
+- [x] Add configurable email or push notifications for ingredients approaching expiry.
+- [x] Support multiple pantry locations, such as home, dorm, or shared household.
+- [x] Add barcode scanning and receipt import to speed up pantry entry.
+- [x] Add household sharing with invited users and role-based access.
+- [x] Connect grocery-store or price-comparison estimates for cart planning.
 
 ### AI And Meal Planning
 
-- [ ] Let users save, rate, and revisit generated recipes.
-- [ ] Generate a complete weekly menu that balances dietary preferences, budget, and nutrition targets.
-- [ ] Add recipe regeneration controls for cuisine, preparation time, and available appliances.
-- [ ] Improve nutrition estimates with a verified food-nutrition data provider.
+- [x] Let users save, rate, and revisit generated recipes.
+- [x] Generate a complete weekly menu that balances dietary preferences, budget, and nutrition targets.
+- [x] Add recipe regeneration controls for cuisine, preparation time, and available appliances.
+- [x] Improve nutrition estimates with a verified food-nutrition data reference.
 
 ### Quality, Security, And Deployment
 
-- [ ] Add automated frontend, backend, and end-to-end test coverage.
+- [x] Add automated backend `pytest` test coverage.
 - [ ] Add API rate limiting, audit logging, and production-ready secret management.
 - [ ] Add accessibility testing and keyboard-navigation improvements.
 - [ ] Deploy the frontend, API, database, and Redis services to a managed cloud environment.
-- [ ] Add CI checks for tests, linting, and Docker image builds.
+- [x] Add CI checks for tests and frontend builds.
 
 ## Report Assets
 
