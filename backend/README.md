@@ -61,6 +61,12 @@ uvicorn app.main:app --host 127.0.0.1 --port 8002 --reload
 | `/api/v1/meal-plan` | Weekly meal scheduling, 7-day auto-generation, mark cooked, and cart updates |
 | `/api/v1/health` | Service health check |
 
+## Run Tests
+
+```bash
+docker compose exec api pytest -v
+```
+
 ## AI Configuration
 
 Add the following settings to the root `.env` file to enable live recipe generation:
