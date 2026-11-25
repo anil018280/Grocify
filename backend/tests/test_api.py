@@ -192,3 +192,8 @@ def test_roadmap_features_end_to_end(client: TestClient, auth_headers: dict):
     notif = client.post("/api/v1/profile/test-notification", headers=auth_headers)
     assert notif.status_code == 200
     assert notif.json()["status"] == "sent"
+
+    # Fridge door camera simulator auto-detect & sync
+    fridge_ev = client.post("/api/v1/pantry/fridge-door-event", json={"scenario": "restock"}, headers=auth_headers)
+    assert fridge_ev.status_code == 200
+    assert fridge_ev.json()["total_pantry_count"] >= 3

@@ -155,6 +155,9 @@ export default function App() {
     max_prep_minutes: 30,
   });
   const [showPhotoScanner, setShowPhotoScanner] = useState(false);
+  const [showFridgeSim, setShowFridgeSim] = useState(false);
+  const [fridgeDoorOpen, setFridgeDoorOpen] = useState(false);
+  const [fridgeEventLog, setFridgeEventLog] = useState([]);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [photoPreview, setPhotoPreview] = useState("");
@@ -333,6 +336,15 @@ export default function App() {
 
   const barcodeMutation = useMutation({
     mutationFn: (code) => apiRequest(`/pantry/barcode/${encodeURIComponent(code)}`, { token }),
+  });
+
+  const fridgeDoorMutation = useMutation({
+    mutationFn: (payload) => apiRequest("/pantry/fridge-door-event", { method: "POST", body: payload, token }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["pantry"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
+      setFridgeEventLog((current) => [data, ...current].slice(0, 5));
+    },
   });
 
   const priceCompareMutation = useMutation({
@@ -679,6 +691,13 @@ export default function App() {
             </div>
             <div className="flex flex-wrap gap-2">
               <button
+                className="rounded-2xl border border-slate/20 bg-slate px-4 py-3 font-extrabold text-white transition hover:opacity-90"
+                type="button"
+                onClick={() => setShowFridgeSim((current) => !current)}
+              >
+                {showFridgeSim ? "Close fridge simulator" : "Fridge camera simulator"}
+              </button>
+              <button
                 className="rounded-2xl border border-moss/30 bg-fern px-4 py-3 font-extrabold text-moss transition hover:bg-stone-100"
                 type="button"
                 onClick={() => {
@@ -693,6 +712,64 @@ export default function App() {
               </button>
             </div>
           </div>
+          {showFridgeSim ? (
+            <div className={`mt-6 space-y-4 rounded-3xl border p-5 transition-all ${fridgeDoorOpen ? "border-amber-300 bg-[#fffbeb] shadow-lg shadow-amber-200/40" : "border-stone-200 bg-stone-50"}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-3 w-3 rounded-full ${fridgeDoorOpen ? "animate-pulse bg-amber-400" : "bg-stone-400"}`} />
+                    <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">
+                      {fridgeDoorOpen ? "Fridge Light ON • Camera Active" : "IoT Fridge Door Sensor • Standby"}
+                    </p>
+                  </div>
+                  <h4 className="mt-1 text-lg font-extrabold text-slate">Smart Fridge Door Camera Simulator</h4>
+                  <p className="text-xs text-stone-500">Opening the fridge door turns on the internal light, captures a shelf frame, and automatically logs/updates items &amp; expiry dates.</p>
+                </div>
+                <button
+                  className={`rounded-2xl px-5 py-3 text-sm font-extrabold transition ${fridgeDoorOpen ? "bg-amber-500 text-slate" : "bg-moss text-white hover:bg-[#255a32]"} disabled:opacity-60`}
+                  type="button"
+                  disabled={fridgeDoorMutation.isPending}
+                  onClick={() => {
+                    setFridgeDoorOpen(true);
+                    fridgeDoorMutation.mutate({ scenario: "restock" }, {
+                      onSettled: () => setTimeout(() => setFridgeDoorOpen(false), 2200),
+                    });
+                  }}
+                >
+                  {fridgeDoorMutation.isPending ? "Light ON • Scanning shelves..." : fridgeDoorOpen ? "Door Open • Syncing..." : "Simulate Door Open"}
+                </button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-[0.42fr_0.58fr]">
+                <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-slate">
+                  <img
+                    src="/sample-fridge.jpg"
+                    alt="Simulated internal fridge camera"
+                    className={`h-48 w-full object-cover transition-all duration-300 ${fridgeDoorOpen ? "brightness-110 contrast-105" : "brightness-50 grayscale"}`}
+                  />
+                  <div className="absolute bottom-2 left-2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white">
+                    {fridgeDoorOpen ? "REC • Auto-detecting items..." : "Door Closed • Camera Asleep"}
+                  </div>
+                </div>
+                <div className="space-y-2 rounded-2xl border border-stone-200 bg-white p-4">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-moss">Auto-Sync Event Log</p>
+                  {fridgeEventLog.length ? (
+                    <div className="grid max-h-36 gap-2 overflow-y-auto pr-1">
+                      {fridgeEventLog.map((ev) => (
+                        <div key={ev.event_id} className="rounded-xl bg-fern px-3 py-2 text-xs">
+                          <p className="font-bold text-slate">{ev.trigger}</p>
+                          <p className="mt-0.5 text-stone-600">
+                            Added: {ev.added_items.length ? ev.added_items.join(", ") : "None"} • Updated: {ev.updated_items.length ? ev.updated_items.join(", ") : "None"} • Total pantry: {ev.total_pantry_count}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-stone-500">Click &ldquo;Simulate Door Open&rdquo; to trigger the fridge light + camera and watch your pantry update automatically.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
           {showPhotoScanner ? (
             <div className="mt-6 space-y-4 rounded-3xl border border-moss/20 bg-fern p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
