@@ -76,6 +76,13 @@ def _fallback_scan(scan_type: str, scenario: str = "produce") -> PantryScanRespo
             ("Frozen Chicken Fillets", 2, "lbs", "Frozen", 180, 8.99, 165, 31, 0, 4, 0),
         ]
         summary = "Deep freezer camera detected frozen peas, mixed berries, garlic naan, and chicken fillets."
+    elif scenario == "garbage_waste":
+        raw_items = [
+            ("Baby Spinach", 1, "bunch", "Produce", 0, 2.99, 23, 3, 4, 0, 2),
+            ("Fresh Strawberries", 1, "pint", "Produce", 0, 4.49, 49, 1, 12, 0, 3),
+            ("Avocados", 1, "pcs", "Produce", 0, 1.50, 240, 3, 13, 22, 10),
+        ]
+        summary = "Trash-bin camera detected discarded wilted spinach, bruised strawberries, and leftover avocado."
     else:
         raw_items = [
             ("Fresh Broccoli", 2, "heads", "Produce", 4, 2.99, 31, 3, 6, 0, 2),

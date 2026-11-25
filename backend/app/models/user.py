@@ -23,3 +23,4 @@ class User(Base):
     weekly_meal_plans = relationship("WeeklyMealPlan", back_populates="user", cascade="all, delete-orphan")
     saved_recipes = relationship("SavedRecipe", back_populates="user", cascade="all, delete-orphan")
     household_members = relationship("HouseholdMember", back_populates="owner", cascade="all, delete-orphan")
+    waste_logs = relationship("WasteLog", back_populates="user", cascade="all, delete-orphan")

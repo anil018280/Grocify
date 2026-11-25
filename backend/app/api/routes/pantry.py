@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.models.pantry import PantryItem
 from app.models.user import User
+from app.models.waste_log import WasteLog
 from app.schemas.pantry import PantryItemCreate, PantryItemResponse, PantryListResponse, PantryScanRequest, PantryScanResponse
 from app.services.barcode_lookup import lookup_barcode
 from app.services.blackboard import blackboard
@@ -167,4 +168,80 @@ def simulate_fridge_door_event(
         "freezer_items_detected": freezer_items_detected,
         "total_pantry_count": len(refreshed.pantry),
         "pantry": refreshed.pantry,
+    }
+
+
+@router.get("/waste-log")
+def get_waste_log(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
+    logs = db.scalars(select(WasteLog).where(WasteLog.user_id == current_user.id).order_by(WasteLog.id.desc())).all()
+    total_value = round(sum(float(w.estimated_value) for w in logs), 2)
+    total_co2 = round(sum(float(w.co2_kg) for w in logs), 2)
+    return {
+        "total_wasted_items": len(logs),
+        "total_value_lost": total_value,
+        "total_co2_kg": total_co2,
+        "waste_logs": [
+            {
+                "id": w.id,
+                "item_name": w.item_name,
+                "quantity": w.quantity,
+                "unit": w.unit,
+                "estimated_value": w.estimated_value,
+                "co2_kg": w.co2_kg,
+                "reason": w.reason,
+                "created_at": w.created_at.isoformat(),
+            }
+            for w in logs
+        ],
+    }
+
+
+@router.post("/garbage-camera-event")
+def simulate_garbage_camera_event(
+    payload: FridgeDoorEventRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Simulate a smart trash-bin camera scanning discarded food, logging waste, and deducting from pantry."""
+    waste_scan = scan_pantry_photo(payload.image_data_url or "", scan_type="pantry", scenario="garbage_waste")
+    existing_items = db.scalars(select(PantryItem).where(PantryItem.user_id == current_user.id)).all()
+    by_name = {item.name.lower(): item for item in existing_items}
+
+    logged_items: list[str] = []
+    deducted_from_pantry: list[str] = []
+
+    for wasted in waste_scan.items:
+        key = wasted.name.strip().lower()
+        match = by_name.get(key)
+        est_val = round(float(wasted.price), 2)
+        co2 = round(max(0.2, float(wasted.quantity) * 0.45), 2)
+        if match:
+            deducted_from_pantry.append(match.name)
+            match.quantity = round(float(match.quantity) - 1.0, 2)
+            if match.quantity <= 0:
+                db.delete(match)
+        db.add(
+            WasteLog(
+                user_id=current_user.id,
+                item_name=wasted.name,
+                quantity=max(1.0, float(wasted.quantity)),
+                unit=wasted.unit or "pcs",
+                estimated_value=est_val,
+                co2_kg=co2,
+                reason="Detected in Trash / Compost Bin",
+            )
+        )
+        logged_items.append(wasted.name)
+
+    db.commit()
+    blackboard.invalidate(current_user.id, "recommendations")
+    waste_summary = get_waste_log(db=db, current_user=current_user)
+
+    return {
+        "event_id": f"waste-{int(datetime.now(timezone.utc).timestamp())}",
+        "trigger": "Bin Lid Opened -> Waste Cam ON -> Discarded Food Logged & Deducted",
+        "summary": waste_scan.summary,
+        "logged_items": logged_items,
+        "deducted_from_pantry": deducted_from_pantry,
+        **waste_summary,
     }

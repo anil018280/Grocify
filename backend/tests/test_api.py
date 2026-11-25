@@ -197,3 +197,9 @@ def test_roadmap_features_end_to_end(client: TestClient, auth_headers: dict):
     fridge_ev = client.post("/api/v1/pantry/fridge-door-event", json={"scenario": "restock"}, headers=auth_headers)
     assert fridge_ev.status_code == 200
     assert fridge_ev.json()["total_pantry_count"] >= 3
+
+    # Garbage bin camera simulator waste logging & pantry deduction
+    waste_ev = client.post("/api/v1/pantry/garbage-camera-event", json={"scenario": "garbage_waste"}, headers=auth_headers)
+    assert waste_ev.status_code == 200
+    assert waste_ev.json()["total_wasted_items"] >= 3
+    assert waste_ev.json()["total_value_lost"] > 0

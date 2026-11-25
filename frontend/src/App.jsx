@@ -161,6 +161,10 @@ export default function App() {
   const [customFridgeFrame, setCustomFridgeFrame] = useState("");
   const [fridgeEventLog, setFridgeEventLog] = useState([]);
   const fridgeFileInputRef = useRef(null);
+  const [showGarbageSim, setShowGarbageSim] = useState(false);
+  const [garbageBinOpen, setGarbageBinOpen] = useState(false);
+  const [customGarbageFrame, setCustomGarbageFrame] = useState("");
+  const garbageFileInputRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [photoPreview, setPhotoPreview] = useState("");
@@ -215,6 +219,12 @@ export default function App() {
   const householdMembersQuery = useQuery({
     queryKey: ["household-members"],
     queryFn: () => apiRequest("/profile/household-members", { token }),
+    enabled: Boolean(token),
+  });
+
+  const wasteQuery = useQuery({
+    queryKey: ["waste-log"],
+    queryFn: () => apiRequest("/pantry/waste-log", { token }),
     enabled: Boolean(token),
   });
 
@@ -347,6 +357,15 @@ export default function App() {
       queryClient.invalidateQueries({ queryKey: ["pantry"] });
       queryClient.invalidateQueries({ queryKey: ["recommendations"] });
       setFridgeEventLog((current) => [data, ...current].slice(0, 5));
+    },
+  });
+
+  const garbageCamMutation = useMutation({
+    mutationFn: (payload) => apiRequest("/pantry/garbage-camera-event", { method: "POST", body: payload, token }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pantry"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["waste-log"] });
     },
   });
 
@@ -701,6 +720,13 @@ export default function App() {
                 {showFridgeSim ? "Close fridge simulator" : "Fridge camera simulator"}
               </button>
               <button
+                className="rounded-2xl border border-amber-300 bg-[#fff7e7] px-4 py-3 font-extrabold text-amber-900 transition hover:bg-amber-100"
+                type="button"
+                onClick={() => setShowGarbageSim((current) => !current)}
+              >
+                {showGarbageSim ? "Close waste simulator" : "Trash / waste camera"}
+              </button>
+              <button
                 className="rounded-2xl border border-moss/30 bg-fern px-4 py-3 font-extrabold text-moss transition hover:bg-stone-100"
                 type="button"
                 onClick={() => {
@@ -715,6 +741,103 @@ export default function App() {
               </button>
             </div>
           </div>
+          {showGarbageSim ? (
+            <div className={`mt-6 space-y-4 rounded-3xl border p-5 transition-all ${garbageBinOpen ? "border-amber-400 bg-[#fff7e7] shadow-lg shadow-amber-200/40" : "border-stone-200 bg-stone-50"}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-3 w-3 rounded-full ${garbageBinOpen ? "animate-pulse bg-amber-500" : "bg-stone-400"}`} />
+                    <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-amber-800">
+                      {garbageBinOpen ? "Bin Lid Open • Waste Cam Scanning" : "Smart Waste Bin Sensor • Standby"}
+                    </p>
+                  </div>
+                  <h4 className="mt-1 text-lg font-extrabold text-slate">Smart Trash / Compost Bin Waste Simulator</h4>
+                  <p className="text-xs text-stone-500">Detects discarded food in the garbage bin, logs money &amp; CO₂e lost, and automatically deducts it from your pantry inventory.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => garbageFileInputRef.current?.click()}
+                    className="rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-bold text-slate"
+                  >
+                    Upload waste photo
+                  </button>
+                  <input
+                    ref={garbageFileInputRef}
+                    className="hidden"
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const img = new Image();
+                        img.onload = () => setCustomGarbageFrame(resizeSourceToDataUrl(img, img.width, img.height));
+                        img.src = String(reader.result || "");
+                      };
+                      reader.readAsDataURL(file);
+                      event.target.value = "";
+                    }}
+                  />
+                  <button
+                    className="rounded-2xl bg-amber-500 px-5 py-2.5 text-sm font-extrabold text-slate transition hover:bg-amber-400 disabled:opacity-60"
+                    type="button"
+                    disabled={garbageCamMutation.isPending}
+                    onClick={() => {
+                      setGarbageBinOpen(true);
+                      garbageCamMutation.mutate(
+                        { image_data_url: customGarbageFrame || null, scenario: "garbage_waste" },
+                        { onSettled: () => setTimeout(() => setGarbageBinOpen(false), 2200) }
+                      );
+                    }}
+                  >
+                    {garbageCamMutation.isPending ? "Scanning waste..." : "Simulate Bin Open"}
+                  </button>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-[0.42fr_0.58fr]">
+                <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-slate">
+                  <img
+                    src={customGarbageFrame || "/sample-garbage-waste.jpg"}
+                    alt="Simulated smart trash bin camera"
+                    className={`h-48 w-full object-cover transition-all duration-300 ${garbageBinOpen ? "brightness-110 contrast-105" : "brightness-60 grayscale"}`}
+                  />
+                  <div className="absolute bottom-2 left-2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white">
+                    {garbageBinOpen ? "Waste Cam • Logging & Deducting..." : "Lid Closed • Cam Asleep"}
+                  </div>
+                </div>
+                <div className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-xl bg-[#fff7e7] p-2.5">
+                      <p className="text-[10px] font-extrabold uppercase text-amber-800">Items Wasted</p>
+                      <p className="mt-0.5 text-lg font-extrabold text-slate">{wasteQuery.data?.total_wasted_items ?? 0}</p>
+                    </div>
+                    <div className="rounded-xl bg-[#fff7e7] p-2.5">
+                      <p className="text-[10px] font-extrabold uppercase text-amber-800">Money Lost</p>
+                      <p className="mt-0.5 text-lg font-extrabold text-slate">${Number(wasteQuery.data?.total_value_lost ?? 0).toFixed(2)}</p>
+                    </div>
+                    <div className="rounded-xl bg-fern p-2.5">
+                      <p className="text-[10px] font-extrabold uppercase text-moss">CO₂e Impact</p>
+                      <p className="mt-0.5 text-lg font-extrabold text-slate">{Number(wasteQuery.data?.total_co2_kg ?? 0).toFixed(1)} kg</p>
+                    </div>
+                  </div>
+                  <div className="grid max-h-28 gap-1.5 overflow-y-auto pr-1">
+                    {(wasteQuery.data?.waste_logs ?? []).length ? (
+                      (wasteQuery.data?.waste_logs ?? []).slice(0, 6).map((w) => (
+                        <div key={w.id} className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-1.5 text-xs">
+                          <span className="font-bold text-slate">{w.item_name}</span>
+                          <span className="text-stone-500">${Number(w.estimated_value).toFixed(2)} • {w.co2_kg} kg CO₂e</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-stone-500">Click &ldquo;Simulate Bin Open&rdquo; to log discarded food and auto-deduct it from your pantry.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {showFridgeSim ? (
             <div className={`mt-6 space-y-4 rounded-3xl border p-5 transition-all ${fridgeDoorOpen ? "border-amber-300 bg-[#fffbeb] shadow-lg shadow-amber-200/40" : "border-stone-200 bg-stone-50"}`}>
               <div className="flex flex-wrap items-center justify-between gap-3">

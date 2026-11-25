@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.db.base import Base
-from app.models import cart, household_member, meal_plan, nutrition, pantry, profile, saved_recipe, user  # noqa: F401
+from app.models import cart, household_member, meal_plan, nutrition, pantry, profile, saved_recipe, user, waste_log  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.sqlalchemy_database_uri)

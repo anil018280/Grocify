@@ -6,6 +6,7 @@ from app.models.pantry import PantryItem
 from app.models.profile import UserProfile
 from app.models.saved_recipe import SavedRecipe
 from app.models.user import User
+from app.models.waste_log import WasteLog
 
 __all__ = [
     "CartItem",
@@ -15,5 +16,6 @@ __all__ = [
     "SavedRecipe",
     "User",
     "UserProfile",
+    "WasteLog",
     "WeeklyMealPlan",
 ]
