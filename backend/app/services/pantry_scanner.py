@@ -68,6 +68,14 @@ def _fallback_scan(scan_type: str, scenario: str = "produce") -> PantryScanRespo
             ("Dijon Mustard", 1, "jar", "Condiments", 60, 3.29, 10, 0, 1, 0, 0),
         ]
         summary = "Side-door rack camera detected sauces & condiments (soy sauce, sriracha, chutney, mustard)."
+    elif scenario == "deep_freezer":
+        raw_items = [
+            ("Frozen Green Peas", 2, "bags", "Frozen", 120, 2.49, 62, 4, 11, 0, 4),
+            ("Frozen Mixed Berries", 1, "bag", "Frozen", 150, 5.49, 70, 1, 17, 0, 4),
+            ("Frozen Garlic Naan", 1, "pack", "Frozen", 90, 4.49, 260, 8, 45, 5, 2),
+            ("Frozen Chicken Fillets", 2, "lbs", "Frozen", 180, 8.99, 165, 31, 0, 4, 0),
+        ]
+        summary = "Deep freezer camera detected frozen peas, mixed berries, garlic naan, and chicken fillets."
     else:
         raw_items = [
             ("Fresh Broccoli", 2, "heads", "Produce", 4, 2.99, 31, 3, 6, 0, 2),

@@ -105,9 +105,10 @@ def simulate_fridge_door_event(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    """Simulate a dual-camera fridge-door-open trigger (main shelf + side-door sauce rack)."""
+    """Simulate a 3-camera fridge-door-open trigger (main shelf + side-door sauces + deep freezer)."""
     shelf_scan = scan_pantry_photo(payload.image_data_url or "", scan_type="pantry", scenario=payload.scenario)
     door_scan = scan_pantry_photo("", scan_type="pantry", scenario="door_sauces")
+    freezer_scan = scan_pantry_photo("", scan_type="pantry", scenario="deep_freezer")
 
     existing_items = db.scalars(select(PantryItem).where(PantryItem.user_id == current_user.id)).all()
     by_name = {item.name.lower(): item for item in existing_items}
@@ -115,12 +116,15 @@ def simulate_fridge_door_event(
     added: list[str] = []
     updated: list[str] = []
     door_sauces_detected: list[str] = []
+    freezer_items_detected: list[str] = []
 
-    def _upsert(detected, is_door: bool = False) -> None:
+    def _upsert(detected, zone: str = "shelf") -> None:
         key = detected.name.strip().lower()
         match = by_name.get(key)
-        if is_door:
+        if zone == "door":
             door_sauces_detected.append(detected.name)
+        elif zone == "freezer":
+            freezer_items_detected.append(detected.name)
         if match:
             match.quantity = round(float(match.quantity) + 1.0, 2)
             match.days_left = min(int(match.days_left), max(0, int(detected.days_left)))
@@ -132,7 +136,7 @@ def simulate_fridge_door_event(
                 quantity=max(1.0, float(detected.quantity)),
                 unit=detected.unit or "pcs",
                 category=detected.category or "Produce",
-                location="Home",
+                location="Freezer" if zone == "freezer" else "Home",
                 days_left=max(0, int(detected.days_left)),
                 price=max(0.0, float(detected.price)),
                 nutrition=detected.nutrition.model_dump(),
@@ -142,9 +146,11 @@ def simulate_fridge_door_event(
             added.append(detected.name)
 
     for item in shelf_scan.items:
-        _upsert(item, is_door=False)
+        _upsert(item, zone="shelf")
     for item in door_scan.items:
-        _upsert(item, is_door=True)
+        _upsert(item, zone="door")
+    for item in freezer_scan.items:
+        _upsert(item, zone="freezer")
 
     db.commit()
     blackboard.invalidate(current_user.id, "recommendations")
@@ -153,11 +159,12 @@ def simulate_fridge_door_event(
     return {
         "event_id": f"fridge-{int(datetime.now(timezone.utc).timestamp())}",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "trigger": "Fridge Door Opened -> Light ON -> Main Shelf + Side-Door Sauce Cam Captured",
-        "summary": f"{shelf_scan.summary} {door_scan.summary}",
+        "trigger": "Door Opened -> Light ON -> Main Shelf + Side-Door Sauces + Deep Freezer Scanned",
+        "summary": f"{shelf_scan.summary} {door_scan.summary} {freezer_scan.summary}",
         "added_items": added,
         "updated_items": updated,
         "door_sauces_detected": door_sauces_detected,
+        "freezer_items_detected": freezer_items_detected,
         "total_pantry_count": len(refreshed.pantry),
         "pantry": refreshed.pantry,
     }

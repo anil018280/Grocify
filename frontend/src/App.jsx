@@ -791,7 +791,7 @@ export default function App() {
                   }}
                 />
               </div>
-              <div className="grid gap-4 lg:grid-cols-[0.34fr_0.34fr_0.32fr]">
+              <div className="grid gap-3 md:grid-cols-3">
                 <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-slate">
                   <img
                     src={
@@ -804,44 +804,59 @@ export default function App() {
                         : "/sample-fridge.jpg"
                     }
                     alt="Simulated main shelf fridge camera"
-                    className={`h-48 w-full object-cover transition-all duration-300 ${fridgeDoorOpen ? "brightness-110 contrast-105" : "brightness-50 grayscale"}`}
+                    className={`h-44 w-full object-cover transition-all duration-300 ${fridgeDoorOpen ? "brightness-110 contrast-105" : "brightness-50 grayscale"}`}
                   />
                   <div className="absolute bottom-2 left-2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white">
-                    {fridgeDoorOpen ? "Cam 1: Main Shelf • Scanning" : "Cam 1: Main Shelf (Asleep)"}
+                    {fridgeDoorOpen ? "Cam 1: Main Shelf • Scanning" : "Cam 1: Main Shelf"}
                   </div>
                 </div>
                 <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-slate">
                   <img
                     src="/sample-fridge-door-sauces.jpg"
                     alt="Simulated side door rack sauces camera"
-                    className={`h-48 w-full object-cover transition-all duration-300 ${fridgeDoorOpen ? "brightness-110 contrast-105" : "brightness-50 grayscale"}`}
+                    className={`h-44 w-full object-cover transition-all duration-300 ${fridgeDoorOpen ? "brightness-110 contrast-105" : "brightness-50 grayscale"}`}
                   />
                   <div className="absolute bottom-2 left-2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white">
-                    {fridgeDoorOpen ? "Cam 2: Side Door Sauces • Scanning" : "Cam 2: Side Door Sauces (Asleep)"}
+                    {fridgeDoorOpen ? "Cam 2: Side Door Sauces • Scanning" : "Cam 2: Side Door Sauces"}
                   </div>
                 </div>
-                <div className="space-y-2 rounded-2xl border border-stone-200 bg-white p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-moss">Auto-Sync Event Log</p>
-                  {fridgeEventLog.length ? (
-                    <div className="grid max-h-36 gap-2 overflow-y-auto pr-1">
-                      {fridgeEventLog.map((ev) => (
-                        <div key={ev.event_id} className="rounded-xl bg-fern px-3 py-2 text-xs">
-                          <p className="font-bold text-slate">{ev.trigger}</p>
-                          <p className="mt-0.5 text-stone-600">
-                            Added: {ev.added_items.length ? ev.added_items.join(", ") : "None"} • Updated: {ev.updated_items.length ? ev.updated_items.join(", ") : "None"}
-                          </p>
-                          {ev.door_sauces_detected?.length ? (
-                            <p className="mt-0.5 font-semibold text-moss">
-                              Side-door sauces scanned: {ev.door_sauces_detected.join(", ")}
-                            </p>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-stone-500">Click &ldquo;Simulate Door Open&rdquo; to trigger both the main shelf camera and the side-door sauce rack camera.</p>
-                  )}
+                <div className="relative overflow-hidden rounded-2xl border border-stone-200 bg-slate">
+                  <img
+                    src="/sample-fridge-freezer.jpg"
+                    alt="Simulated deep freezer camera"
+                    className={`h-44 w-full object-cover transition-all duration-300 ${fridgeDoorOpen ? "brightness-110 contrast-105" : "brightness-50 grayscale"}`}
+                  />
+                  <div className="absolute bottom-2 left-2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-bold text-white">
+                    {fridgeDoorOpen ? "Cam 3: Deep Freezer • Scanning" : "Cam 3: Deep Freezer"}
+                  </div>
                 </div>
+              </div>
+              <div className="space-y-2 rounded-2xl border border-stone-200 bg-white p-4">
+                <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-moss">Auto-Sync Event Log (3 Cameras)</p>
+                {fridgeEventLog.length ? (
+                  <div className="grid max-h-36 gap-2 overflow-y-auto pr-1">
+                    {fridgeEventLog.map((ev) => (
+                      <div key={ev.event_id} className="rounded-xl bg-fern px-3 py-2 text-xs">
+                        <p className="font-bold text-slate">{ev.trigger}</p>
+                        <p className="mt-0.5 text-stone-600">
+                          Added: {ev.added_items.length ? ev.added_items.join(", ") : "None"} • Updated: {ev.updated_items.length ? ev.updated_items.join(", ") : "None"}
+                        </p>
+                        {ev.door_sauces_detected?.length ? (
+                          <p className="mt-0.5 font-semibold text-moss">
+                            Side-door sauces: {ev.door_sauces_detected.join(", ")}
+                          </p>
+                        ) : null}
+                        {ev.freezer_items_detected?.length ? (
+                          <p className="mt-0.5 font-semibold text-slate">
+                            Deep freezer: {ev.freezer_items_detected.join(", ")}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-500">Click &ldquo;Simulate Door Open&rdquo; to trigger Main Shelf, Side-Door Sauces, and Deep Freezer cameras simultaneously.</p>
+                )}
               </div>
             </div>
           ) : null}
