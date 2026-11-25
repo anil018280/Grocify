@@ -38,6 +38,7 @@ DEMO_BARCODES = {
 
 
 def lookup_barcode(code: str) -> dict:
+    """Resolve product metadata and nutrition from OpenFoodFacts or local demo barcodes."""
     clean = code.strip()
     if clean in DEMO_BARCODES:
         return {"barcode": clean, **DEMO_BARCODES[clean]}
