@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PantryNutrition(BaseModel):
@@ -29,3 +31,38 @@ class PantryItemResponse(PantryItemBase):
 
 class PantryListResponse(BaseModel):
     pantry: list[PantryItemResponse]
+
+
+class PantryScanRequest(BaseModel):
+    image_data_url: str = Field(min_length=20)
+    scan_type: Literal["auto", "pantry", "receipt"] = "auto"
+
+
+class ScannedPantryNutrition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    calories: float
+    protein: float
+    carbs: float
+    fat: float
+    fiber: float
+
+
+class ScannedPantryItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    quantity: float
+    unit: str
+    category: str
+    days_left: int
+    expiry_date: str
+    price: float
+    nutrition: ScannedPantryNutrition
+
+
+class PantryScanResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str
+    items: list[ScannedPantryItem]

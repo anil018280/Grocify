@@ -8,6 +8,7 @@ from app.models.pantry import PantryItem
 from app.models.profile import UserProfile
 from app.models.user import User
 from app.schemas.recommendations import RecipePlan, RecipeRequest, RecommendationResponse
+from app.services.blackboard import blackboard
 from app.services.recipe_generator import generate_recipe
 from app.services.recommendations import build_recommendations
 
@@ -19,10 +20,16 @@ router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 def get_recommendations(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ) -> RecommendationResponse:
+    cached = blackboard.get(current_user.id, "recommendations")
+    if cached:
+        return RecommendationResponse.model_validate(cached)
+
     pantry_items = db.scalars(select(PantryItem).where(PantryItem.user_id == current_user.id)).all()
     nutrition_entries = db.scalars(select(NutritionEntry).where(NutritionEntry.user_id == current_user.id)).all()
     calorie_target = (current_user.profile or UserProfile(user_id=current_user.id)).calorie_target
-    return build_recommendations(pantry_items, nutrition_entries, calorie_target)
+    result = build_recommendations(pantry_items, nutrition_entries, calorie_target)
+    blackboard.put(current_user.id, "recommendations", result.model_dump(), ttl_seconds=120)
+    return result
 
 
 @router.post("/recipe", response_model=RecipePlan)

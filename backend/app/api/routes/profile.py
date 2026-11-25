@@ -13,6 +13,12 @@ class ProfileUpdateRequest(BaseModel):
     focused_mode: bool
     custom_recipe_name_value: str = Field(default="", max_length=255)
     custom_ingredients: list[str]
+    household_size: int = Field(default=2, ge=1, le=20)
+    preferred_cuisines: list[str] = Field(default_factory=list)
+    dietary_preferences: list[str] = Field(default_factory=list)
+    allergies: list[str] = Field(default_factory=list)
+    cooking_skill: str = Field(default="Intermediate", max_length=40)
+    max_prep_minutes: int = Field(default=30, ge=5, le=240)
 
 
 router = APIRouter(prefix="/profile", tags=["profile"])
@@ -27,6 +33,12 @@ def get_profile(current_user: User = Depends(get_current_user)) -> ProfileRespon
         custom_recipe_name_value=profile.custom_recipe_name_value,
         custom_ingredients=profile.custom_ingredients or [],
         calorie_target=profile.calorie_target,
+        household_size=profile.household_size or 2,
+        preferred_cuisines=profile.preferred_cuisines or [],
+        dietary_preferences=profile.dietary_preferences or [],
+        allergies=profile.allergies or [],
+        cooking_skill=profile.cooking_skill or "Intermediate",
+        max_prep_minutes=profile.max_prep_minutes or 30,
     )
 
 
@@ -42,5 +54,11 @@ def update_profile(
     current_user.profile.focused_mode = payload.focused_mode
     current_user.profile.custom_recipe_name_value = payload.custom_recipe_name_value
     current_user.profile.custom_ingredients = payload.custom_ingredients
+    current_user.profile.household_size = payload.household_size
+    current_user.profile.preferred_cuisines = payload.preferred_cuisines
+    current_user.profile.dietary_preferences = payload.dietary_preferences
+    current_user.profile.allergies = payload.allergies
+    current_user.profile.cooking_skill = payload.cooking_skill
+    current_user.profile.max_prep_minutes = payload.max_prep_minutes
     db.commit()
     return get_profile(current_user=current_user)

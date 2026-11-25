@@ -7,9 +7,12 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.models.cart import CartItem
 from app.models.meal_plan import WeeklyMealPlan
+from app.models.nutrition import NutritionEntry
+from app.models.pantry import PantryItem
 from app.models.user import User
 from app.schemas.cart import CartItemResponse, CartResponse
 from app.schemas.meal_plan import WEEK_DAYS, MealPlanCreate, MealPlanEntry, WeeklyMealPlanResponse
+from app.services.blackboard import blackboard
 
 
 router = APIRouter(prefix="/meal-plan", tags=["meal plan"])
@@ -98,3 +101,72 @@ def add_missing_ingredients_to_cart(day: str, db: Session = Depends(get_db), cur
     db.commit()
     items = db.scalars(select(CartItem).where(CartItem.user_id == current_user.id).order_by(CartItem.id.desc())).all()
     return CartResponse(cart_items=[CartItemResponse(id=item.id, name=item.name, quantity=item.quantity, price=item.price) for item in items])
+
+
+@router.post("/{day}/cook")
+def mark_meal_cooked(day: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
+    week_start = current_week_start()
+    meal = db.scalar(
+        select(WeeklyMealPlan).where(
+            WeeklyMealPlan.user_id == current_user.id,
+            WeeklyMealPlan.week_start == week_start,
+            WeeklyMealPlan.day == day,
+        )
+    )
+    if not meal:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No meal is scheduled for that day.")
+
+    pantry_items = db.scalars(select(PantryItem).where(PantryItem.user_id == current_user.id)).all()
+    pantry_by_name = {item.name.lower(): item for item in pantry_items}
+
+    deducted_items: list[str] = []
+    calories = 0.0
+    protein = 0.0
+    carbs = 0.0
+    fat = 0.0
+    fiber = 0.0
+
+    for ing in meal.ingredients or []:
+        if not ing.get("from_pantry"):
+            continue
+        match = pantry_by_name.get(str(ing.get("name", "")).strip().lower())
+        if not match:
+            continue
+        nut = match.nutrition or {}
+        calories += float(nut.get("calories", 120))
+        protein += float(nut.get("protein", 5))
+        carbs += float(nut.get("carbs", 15))
+        fat += float(nut.get("fat", 4))
+        fiber += float(nut.get("fiber", 2))
+        deducted_items.append(match.name)
+        match.quantity = round(float(match.quantity) - 1.0, 2)
+        if match.quantity <= 0:
+            db.delete(match)
+
+    if calories == 0:
+        calories, protein, carbs, fat, fiber = 360.0, 18.0, 42.0, 12.0, 6.0
+
+    db.add(
+        NutritionEntry(
+            user_id=current_user.id,
+            item_name=f"{meal.title} ({day})",
+            servings=1.0,
+            calories=round(calories, 1),
+            protein=round(protein, 1),
+            carbs=round(carbs, 1),
+            fat=round(fat, 1),
+            fiber=round(fiber, 1),
+        )
+    )
+    title = meal.title
+    db.delete(meal)
+    db.commit()
+    blackboard.invalidate(current_user.id, "recommendations")
+
+    return {
+        "status": "cooked",
+        "day": day,
+        "title": title,
+        "deducted_items": deducted_items,
+        "logged_calories": round(calories),
+    }

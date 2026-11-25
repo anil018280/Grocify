@@ -8,6 +8,7 @@ from app.models.nutrition import NutritionEntry
 from app.models.profile import UserProfile
 from app.models.user import User
 from app.schemas.nutrition import NutritionEntryCreate, NutritionEntryResponse, NutritionResponse
+from app.services.blackboard import blackboard
 
 
 class NutritionUpdateRequest(BaseModel):
@@ -66,4 +67,5 @@ def replace_nutrition(
         current_user.profile = UserProfile(user_id=current_user.id)
     current_user.profile.calorie_target = payload.calorie_target
     db.commit()
+    blackboard.invalidate(current_user.id, "recommendations")
     return get_nutrition(db=db, current_user=current_user)

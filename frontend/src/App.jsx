@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiRequest } from "./lib/api";
 import { useAuth } from "./providers/AuthProvider";
 import plannerHero from "./assets/ai-meal-planner-hero.png";
 
-const tabs = ["inventory", "planner", "budget", "nutrition", "profile"];
+const tabs = ["dashboard", "inventory", "planner", "budget", "nutrition", "profile"];
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const emptyForm = {
@@ -18,7 +18,8 @@ const emptyForm = {
 };
 
 function SectionCard({ children, className = "" }) {
-  return <section className={`overflow-hidden rounded-3xl border border-stone-200 bg-white p-6 shadow-card ${className}`}>{children}</section>;
+  const baseBg = className.includes("bg-") ? "" : "bg-white";
+  return <section className={`overflow-hidden rounded-3xl border border-stone-200 p-6 shadow-card ${baseBg} ${className}`}>{children}</section>;
 }
 
 function MetricCard({ label, value, hint, className = "" }) {
@@ -114,7 +115,7 @@ function AuthScreen() {
 export default function App() {
   const queryClient = useQueryClient();
   const { token, user, authReady, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState("inventory");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [saveState, setSaveState] = useState("All changes saved");
   const [editingItemId, setEditingItemId] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -123,6 +124,35 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [recipeForm, setRecipeForm] = useState({ preferences: "", allergies: "", servings: 2, budget: 20 });
   const [selectedPlanDay, setSelectedPlanDay] = useState("Monday");
+  const [cartForm, setCartForm] = useState({ name: "", quantity: 1, price: 2.5 });
+  const [weeklyBudget, setWeeklyBudget] = useState(() => {
+    const saved = window.localStorage.getItem("grocify_weekly_budget");
+    return saved ? Number(saved) || 75 : 75;
+  });
+  const [budgetInput, setBudgetInput] = useState(() => {
+    const saved = window.localStorage.getItem("grocify_weekly_budget");
+    return saved ? Number(saved) || 75 : 75;
+  });
+  const [calorieTargetInput, setCalorieTargetInput] = useState(2000);
+  const [nutritionForm, setNutritionForm] = useState({ item_name: "", servings: 1, calories: 250, protein: 12, carbs: 30, fat: 8, fiber: 4 });
+  const [customIngredientInput, setCustomIngredientInput] = useState("");
+  const [cuisineInput, setCuisineInput] = useState("");
+  const [dietInput, setDietInput] = useState("");
+  const [allergyInput, setAllergyInput] = useState("");
+  const [householdForm, setHouseholdForm] = useState({
+    household_size: 2,
+    cooking_skill: "Intermediate",
+    max_prep_minutes: 30,
+  });
+  const [showPhotoScanner, setShowPhotoScanner] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [scanSummary, setScanSummary] = useState("");
+  const [scannedItems, setScannedItems] = useState([]);
+  const videoRef = useRef(null);
+  const cameraStreamRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const pantryQuery = useQuery({
     queryKey: ["pantry"],
@@ -160,15 +190,27 @@ export default function App() {
     enabled: Boolean(token),
   });
 
+  const healthQuery = useQuery({
+    queryKey: ["health"],
+    queryFn: () => apiRequest("/health"),
+    enabled: Boolean(token),
+  });
+
   const pantryItems = pantryQuery.data?.pantry ?? [];
   const cartItems = cartQuery.data?.cart_items ?? [];
   const nutrition = nutritionQuery.data ?? { calorie_target: 2000, calorie_entries: [] };
   const profile = profileQuery.data ?? {
-    active_tab: "inventory",
+    active_tab: "dashboard",
     focused_mode: false,
     custom_recipe_name_value: "",
     custom_ingredients: [],
     calorie_target: 2000,
+    household_size: 2,
+    preferred_cuisines: [],
+    dietary_preferences: [],
+    allergies: [],
+    cooking_skill: "Intermediate",
+    max_prep_minutes: 30,
   };
 
   const pantryMutation = useMutation({
@@ -239,16 +281,54 @@ export default function App() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meal-plan"] }),
   });
 
+  const cookMealMutation = useMutation({
+    mutationFn: (day) => apiRequest(`/meal-plan/${day}/cook`, { method: "POST", token }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meal-plan"] });
+      queryClient.invalidateQueries({ queryKey: ["pantry"] });
+      queryClient.invalidateQueries({ queryKey: ["nutrition"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
+    },
+  });
+
+  const scanPhotoMutation = useMutation({
+    mutationFn: (image_data_url) => apiRequest("/pantry/scan-photo", {
+      method: "POST",
+      body: { image_data_url, scan_type: "auto" },
+      token,
+    }),
+    onSuccess: (data) => {
+      setScanSummary(data?.summary || "");
+      setScannedItems(data?.items ?? []);
+    },
+  });
+
   const inventoryValue = useMemo(
     () => pantryItems.reduce((sum, item) => sum + Number(item.price || 0), 0),
     [pantryItems]
   );
 
   useEffect(() => {
-    if (profile.active_tab && tabs.includes(profile.active_tab)) {
-      setActiveTab(profile.active_tab);
+    if (nutrition.calorie_target) {
+      setCalorieTargetInput(nutrition.calorie_target);
     }
-  }, [profile.active_tab]);
+  }, [nutrition.calorie_target]);
+
+  useEffect(() => {
+    if (profileQuery.data) {
+      setHouseholdForm({
+        household_size: profileQuery.data.household_size ?? 2,
+        cooking_skill: profileQuery.data.cooking_skill || "Intermediate",
+        max_prep_minutes: profileQuery.data.max_prep_minutes ?? 30,
+      });
+      setRecipeForm((current) => ({
+        ...current,
+        servings: current.servings || profileQuery.data.household_size || 2,
+        preferences: current.preferences || (profileQuery.data.preferred_cuisines || []).join(", "),
+        allergies: current.allergies || (profileQuery.data.allergies || []).join(", "),
+      }));
+    }
+  }, [profileQuery.data]);
 
   if (!authReady) {
     return <div className="flex min-h-screen items-center justify-center text-lg font-semibold text-stone-500">Loading Grocify...</div>;
@@ -305,6 +385,94 @@ export default function App() {
     pantryMutation.mutate(pantryItems.filter((item) => item.id !== itemId));
   }
 
+  function stopCamera() {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    }
+    setCameraActive(false);
+  }
+
+  async function startCamera() {
+    setCameraError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Camera access is not supported in this browser. Use Upload photo instead.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      cameraStreamRef.current = stream;
+      setCameraActive(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 50);
+    } catch {
+      setCameraError("Could not access camera. Check browser permissions or use Upload photo.");
+    }
+  }
+
+  function resizeSourceToDataUrl(source, width, height) {
+    const maxDim = 1024;
+    const scale = Math.min(1, maxDim / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  }
+
+  function captureCameraPhoto() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const dataUrl = resizeSourceToDataUrl(video, video.videoWidth, video.videoHeight);
+    setPhotoPreview(dataUrl);
+    setScannedItems([]);
+    scanPhotoMutation.reset();
+    stopCamera();
+  }
+
+  function handlePhotoFileChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setCameraError("");
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const dataUrl = resizeSourceToDataUrl(img, img.width, img.height);
+        setPhotoPreview(dataUrl);
+        setScannedItems([]);
+        scanPhotoMutation.reset();
+      };
+      img.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  }
+
+  function addScannedItemsToPantry() {
+    if (!scannedItems.length) return;
+    const baseId = Date.now();
+    const mapped = scannedItems.map((item, index) => ({
+      id: baseId + index,
+      name: item.name,
+      quantity: Math.max(1, Number(item.quantity) || 1),
+      unit: item.unit || "pcs",
+      category: item.category || "Pantry",
+      days_left: Math.max(0, Number(item.days_left) || 5),
+      price: Math.max(0, Number(item.price) || 0),
+      nutrition: item.nutrition || { calories: 120, protein: 4, carbs: 12, fat: 3, fiber: 1 },
+    }));
+    pantryMutation.mutate([...mapped, ...pantryItems]);
+    setScannedItems([]);
+    setPhotoPreview("");
+    setShowPhotoScanner(false);
+    scanPhotoMutation.reset();
+  }
+
   function addCartFromPantry(item) {
     const existing = cartItems.find((entry) => entry.name.toLowerCase() === item.name.toLowerCase());
     const nextCart = existing
@@ -334,14 +502,24 @@ export default function App() {
     });
   }
 
+  function saveProfilePatch(patch) {
+    profileMutation.mutate({
+      active_tab: patch.active_tab ?? profile.active_tab ?? activeTab,
+      focused_mode: patch.focused_mode ?? profile.focused_mode,
+      custom_recipe_name_value: patch.custom_recipe_name_value ?? profile.custom_recipe_name_value,
+      custom_ingredients: patch.custom_ingredients ?? profile.custom_ingredients,
+      household_size: patch.household_size ?? profile.household_size ?? 2,
+      preferred_cuisines: patch.preferred_cuisines ?? profile.preferred_cuisines ?? [],
+      dietary_preferences: patch.dietary_preferences ?? profile.dietary_preferences ?? [],
+      allergies: patch.allergies ?? profile.allergies ?? [],
+      cooking_skill: patch.cooking_skill ?? profile.cooking_skill ?? "Intermediate",
+      max_prep_minutes: patch.max_prep_minutes ?? profile.max_prep_minutes ?? 30,
+    });
+  }
+
   function updateActiveTab(nextTab) {
     setActiveTab(nextTab);
-    profileMutation.mutate({
-      active_tab: nextTab,
-      focused_mode: profile.focused_mode,
-      custom_recipe_name_value: profile.custom_recipe_name_value,
-      custom_ingredients: profile.custom_ingredients,
-    });
+    saveProfilePatch({ active_tab: nextTab });
   }
 
   function generateAiRecipe(event) {
@@ -367,7 +545,6 @@ export default function App() {
   }
 
   function renderInventoryPanel() {
-    const cartTotal = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
     const expiringSoon = pantryItems.filter((item) => Number(item.days_left) <= 3).length;
     const categories = ["All", ...new Set(pantryItems.map((item) => item.category).filter(Boolean))];
     const visibleItems = pantryItems.filter((item) => {
@@ -385,10 +562,115 @@ export default function App() {
               <h3 className="text-2xl font-extrabold text-slate">Items you have</h3>
               <p className="mt-1 text-sm text-stone-500">{pantryItems.length} tracked pantry items worth ${inventoryValue.toFixed(2)}.</p>
             </div>
-            <button className="rounded-2xl bg-moss px-5 py-3 font-extrabold text-white shadow-lg shadow-moss/20 transition hover:-translate-y-0.5 hover:bg-[#255a32]" type="button" onClick={() => setShowItemForm((current) => !current)}>
-              {showItemForm ? "Close quick add" : "Add pantry item"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="rounded-2xl border border-moss/30 bg-fern px-4 py-3 font-extrabold text-moss transition hover:bg-stone-100"
+                type="button"
+                onClick={() => {
+                  if (showPhotoScanner) stopCamera();
+                  setShowPhotoScanner((current) => !current);
+                }}
+              >
+                {showPhotoScanner ? "Close scanner" : "Scan photo / receipt"}
+              </button>
+              <button className="rounded-2xl bg-moss px-5 py-3 font-extrabold text-white shadow-lg shadow-moss/20 transition hover:-translate-y-0.5 hover:bg-[#255a32]" type="button" onClick={() => setShowItemForm((current) => !current)}>
+                {showItemForm ? "Close quick add" : "Add pantry item"}
+              </button>
+            </div>
           </div>
+          {showPhotoScanner ? (
+            <div className="mt-6 space-y-4 rounded-3xl border border-moss/20 bg-fern p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Smart scan</p>
+                  <h4 className="mt-1 text-lg font-extrabold text-slate">Snap or upload a fridge photo, receipt, or order screenshot</h4>
+                  <p className="text-xs text-stone-500">Automatically detects items and calculates expiry dates—no mode selection needed.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button className="rounded-2xl bg-slate px-4 py-2.5 text-sm font-bold text-white" type="button" onClick={cameraActive ? stopCamera : startCamera}>
+                    {cameraActive ? "Stop camera" : "Take photo (Camera)"}
+                  </button>
+                  <button className="rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-bold text-slate" type="button" onClick={() => fileInputRef.current?.click()}>
+                    Upload photo / screenshot
+                  </button>
+                  <input ref={fileInputRef} className="hidden" type="file" accept="image/*" capture="environment" onChange={handlePhotoFileChange} />
+                </div>
+              </div>
+              {cameraError ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{cameraError}</p> : null}
+              {cameraActive ? (
+                <div className="space-y-3">
+                  <video ref={videoRef} autoPlay playsInline className="max-h-72 w-full rounded-2xl bg-black object-cover" />
+                  <button className="rounded-2xl bg-moss px-5 py-2.5 text-sm font-extrabold text-white" type="button" onClick={captureCameraPhoto}>
+                    Capture photo
+                  </button>
+                </div>
+              ) : null}
+              {photoPreview ? (
+                <div className="grid gap-4 md:grid-cols-[0.45fr_0.55fr]">
+                  <img src={photoPreview} alt="Pantry or fridge preview" className="max-h-60 w-full rounded-2xl border border-stone-200 object-cover" />
+                  <div className="flex flex-col justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate">Photo ready for analysis</p>
+                      <p className="mt-1 text-xs text-stone-500">Click analyze to extract food items with OpenAI Vision, then review before adding.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        className="rounded-2xl bg-moss px-5 py-2.5 text-sm font-extrabold text-white disabled:opacity-60"
+                        type="button"
+                        disabled={scanPhotoMutation.isPending}
+                        onClick={() => scanPhotoMutation.mutate(photoPreview)}
+                      >
+                        {scanPhotoMutation.isPending ? "Calculating expiry dates..." : "Scan & calculate expiry"}
+                      </button>
+                      <button
+                        className="rounded-2xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-bold text-stone-600"
+                        type="button"
+                        onClick={() => {
+                          setPhotoPreview("");
+                          setScanSummary("");
+                          setScannedItems([]);
+                          scanPhotoMutation.reset();
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              {scanPhotoMutation.isError ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{scanPhotoMutation.error.message}</p> : null}
+              {scannedItems.length ? (
+                <div className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4">
+                  {scanSummary ? <p className="rounded-xl bg-fern px-3 py-2 text-xs font-semibold text-moss">{scanSummary}</p> : null}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-extrabold text-slate">Detected items ({scannedItems.length})</p>
+                    <button className="rounded-2xl bg-moss px-4 py-2 text-xs font-extrabold text-white" type="button" onClick={addScannedItemsToPantry}>
+                      Add all to pantry
+                    </button>
+                  </div>
+                  <div className="grid max-h-60 gap-2 overflow-y-auto pr-1">
+                    {scannedItems.map((item, idx) => (
+                      <div key={`${item.name}-${idx}`} className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-2 text-sm">
+                        <div>
+                          <span className="font-bold text-slate">{item.name}</span>
+                          <span className="ml-2 text-xs text-stone-500">
+                            {item.quantity} {item.unit} • {item.category} • Expires {item.expiry_date} ({item.days_left}d left) • ${Number(item.price).toFixed(2)}
+                          </span>
+                        </div>
+                        <button
+                          className="text-xs font-bold text-red-600"
+                          type="button"
+                          onClick={() => setScannedItems((current) => current.filter((_, i) => i !== idx))}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {showItemForm ? (
             <form className="mt-6 grid gap-3 rounded-3xl border border-moss/15 bg-fern p-4 md:grid-cols-2 xl:grid-cols-3" onSubmit={handlePantrySubmit}>
               <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" placeholder="Item name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
@@ -455,30 +737,6 @@ export default function App() {
               hint="Items with 3 days or less left should be used first."
             />
           </div>
-
-          <SectionCard className="bg-slate text-white">
-            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-white/70">Budget snapshot</p>
-            <h3 className="mt-2 text-4xl font-extrabold">${cartTotal.toFixed(2)}</h3>
-            <p className="mt-2 text-sm text-white/75">{cartItems.length} cart entries synced through TanStack Query mutations.</p>
-          </SectionCard>
-
-          <SectionCard>
-            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Cart</p>
-            <h3 className="mt-2 text-2xl font-extrabold text-slate">Shopping list</h3>
-            <div className="mt-4 grid max-h-[22rem] gap-3 overflow-y-auto pr-2">
-              {cartItems.length ? cartItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-2xl bg-fern px-4 py-3">
-                  <div>
-                    <p className="font-bold text-slate">{item.name}</p>
-                    <p className="text-sm text-stone-500">{item.quantity} unit(s) • ${Number(item.price).toFixed(2)} each</p>
-                  </div>
-                  <button className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-red-600" type="button" onClick={() => removeCartItem(item.id)}>
-                    Remove
-                  </button>
-                </div>
-              )) : <p className="text-sm text-stone-500">Your cart is empty.</p>}
-            </div>
-          </SectionCard>
         </div>
       </div>
     );
@@ -486,31 +744,200 @@ export default function App() {
 
   function renderBudgetPanel() {
     const cartTotal = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+    const remainingBudget = weeklyBudget - cartTotal;
+    const budgetProgress = Math.min(100, Math.round((cartTotal / Math.max(1, weeklyBudget)) * 100));
+    const isOverBudget = remainingBudget < 0;
+    const suggestions = recommendationsQuery.data?.shopping_suggestions ?? [];
+
+    const categorySpend = Object.entries(
+      pantryItems.reduce((acc, item) => {
+        const cat = item.category || "Pantry";
+        if (!acc[cat]) acc[cat] = { count: 0, total: 0 };
+        acc[cat].count += 1;
+        acc[cat].total += Number(item.price || 0);
+        return acc;
+      }, {})
+    ).sort((a, b) => b[1].total - a[1].total);
+
+    function handleBudgetSave(event) {
+      event.preventDefault();
+      const next = Math.max(1, Number(budgetInput) || 75);
+      setWeeklyBudget(next);
+      window.localStorage.setItem("grocify_weekly_budget", String(next));
+    }
+
+    function handleAddCartItem(event) {
+      event.preventDefault();
+      if (!cartForm.name.trim()) return;
+      const existing = cartItems.find((entry) => entry.name.toLowerCase() === cartForm.name.trim().toLowerCase());
+      const nextCart = existing
+        ? cartItems.map((entry) => (entry.id === existing.id ? { ...entry, quantity: entry.quantity + Number(cartForm.quantity) } : entry))
+        : [{ id: Date.now(), name: cartForm.name.trim(), quantity: Number(cartForm.quantity), price: Number(cartForm.price) }, ...cartItems];
+      cartMutation.mutate(nextCart);
+      setCartForm({ name: "", quantity: 1, price: 2.5 });
+    }
+
+    function adjustCartQuantity(itemId, delta) {
+      const nextCart = cartItems
+        .map((entry) => (entry.id === itemId ? { ...entry, quantity: Math.max(0, Number(entry.quantity) + delta) } : entry))
+        .filter((entry) => entry.quantity > 0);
+      cartMutation.mutate(nextCart);
+    }
+
+    function checkoutCartToPantry() {
+      if (!cartItems.length) return;
+      const baseId = Date.now();
+      const restockedItems = cartItems.map((item, idx) => ({
+        id: baseId + idx,
+        name: item.name,
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        unit: "pcs",
+        category: "Pantry",
+        days_left: 7,
+        price: Number(item.price) || 0,
+        nutrition: { calories: 120, protein: 4, carbs: 14, fat: 3, fiber: 2 },
+      }));
+      pantryMutation.mutate([...restockedItems, ...pantryItems]);
+      cartMutation.mutate([]);
+    }
+
+    const urgentValue = urgentPantryItems.reduce((sum, item) => sum + Number(item.price || 0), 0);
 
     return (
-      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard className="bg-slate text-white">
-          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-white/70">Budget</p>
-          <h3 className="mt-2 text-4xl font-extrabold">${cartTotal.toFixed(2)}</h3>
-          <p className="mt-2 text-sm text-white/75">{cartItems.length} items are currently planned for purchase.</p>
-        </SectionCard>
-        <SectionCard>
-          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Cart</p>
-          <h3 className="mt-2 text-2xl font-extrabold text-slate">Shopping list</h3>
-          <div className="mt-4 grid max-h-[28rem] gap-3 overflow-y-auto pr-2">
-            {cartItems.length ? cartItems.map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-2xl bg-fern px-4 py-3">
-                <div>
-                  <p className="font-bold text-slate">{item.name}</p>
-                  <p className="text-sm text-stone-500">{item.quantity} unit(s) • ${Number(item.price).toFixed(2)} each</p>
-                </div>
-                <button className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-red-600" type="button" onClick={() => removeCartItem(item.id)}>
-                  Remove
-                </button>
+      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="space-y-6">
+          <SectionCard className="bg-slate text-white">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-white/70">Budget planner</p>
+                <h3 className="mt-2 text-4xl font-extrabold">${cartTotal.toFixed(2)} <span className="text-lg font-bold text-white/60">/ ${weeklyBudget.toFixed(2)}</span></h3>
               </div>
-            )) : <p className="text-sm text-stone-500">Your cart is empty.</p>}
-          </div>
-        </SectionCard>
+              <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${isOverBudget ? "bg-red-500/20 text-red-200" : "bg-lime-300/20 text-lime-200"}`}>
+                {isOverBudget ? `Over by $${Math.abs(remainingBudget).toFixed(2)}` : `$${remainingBudget.toFixed(2)} left`}
+              </span>
+            </div>
+            <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/15">
+              <div className={`h-full rounded-full transition-all ${isOverBudget ? "bg-red-400" : "bg-lime-300"}`} style={{ width: `${budgetProgress}%` }} />
+            </div>
+            <p className="mt-3 text-sm text-white/75">
+              {cartItems.length} item(s) in cart • Current pantry value: ${inventoryValue.toFixed(2)}
+            </p>
+            <form className="mt-4 flex gap-2" onSubmit={handleBudgetSave}>
+              <input
+                className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white placeholder-white/50 outline-none focus:border-lime-200"
+                type="number"
+                min="1"
+                step="0.01"
+                aria-label="Weekly grocery budget"
+                value={budgetInput}
+                onChange={(event) => setBudgetInput(event.target.value)}
+                required
+              />
+              <button className="shrink-0 rounded-2xl bg-lime-200 px-4 py-2.5 text-sm font-extrabold text-slate transition hover:bg-white" type="submit">
+                Set budget
+              </button>
+            </form>
+          </SectionCard>
+
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Pantry spend breakdown</p>
+            <h3 className="mt-2 text-xl font-extrabold text-slate">Value by category</h3>
+            <div className="mt-4 grid gap-2.5">
+              {categorySpend.length ? categorySpend.map(([category, info]) => (
+                <div key={category} className="flex items-center justify-between rounded-2xl bg-fern px-4 py-3 text-sm">
+                  <span className="font-bold text-slate">{category} <span className="font-normal text-stone-500">({info.count} items)</span></span>
+                  <span className="font-extrabold text-moss">${info.total.toFixed(2)}</span>
+                </div>
+              )) : <p className="text-sm text-stone-500">Add pantry items to see category spend.</p>}
+            </div>
+          </SectionCard>
+
+          {urgentPantryItems.length ? (
+            <SectionCard className="border-amber-200 bg-[#fff7e7]">
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-amber-800">Potential food waste</p>
+              <h3 className="mt-2 text-2xl font-extrabold text-slate">${urgentValue.toFixed(2)} at risk</h3>
+              <p className="mt-1 text-sm text-stone-600">{urgentPantryItems.length} item(s) expire within 3 days. Cook them first to protect your grocery budget.</p>
+              <button className="mt-4 rounded-2xl bg-amber-500 px-4 py-2.5 text-sm font-extrabold text-slate transition hover:bg-amber-400" type="button" onClick={planExpiringItems}>
+                Rescue expiring items
+              </button>
+            </SectionCard>
+          ) : null}
+
+          {suggestions.length ? (
+            <SectionCard className="bg-sand">
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Smart suggestions</p>
+              <h3 className="mt-2 text-xl font-extrabold text-slate">Recommended next buys</h3>
+              <div className="mt-4 grid gap-2.5">
+                {suggestions.map((suggestion) => (
+                  <div key={suggestion.name} className="flex items-center justify-between gap-3 rounded-2xl bg-white/85 px-4 py-3">
+                    <div>
+                      <p className="font-bold text-slate">{suggestion.name}</p>
+                      <p className="text-xs text-stone-500">{suggestion.reason}</p>
+                    </div>
+                    <button
+                      className="shrink-0 rounded-xl bg-moss px-3 py-1.5 text-xs font-extrabold text-white"
+                      type="button"
+                      onClick={() => cartMutation.mutate([{ id: Date.now(), name: suggestion.name, quantity: 1, price: 3.5 }, ...cartItems])}
+                    >
+                      + Cart
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
+        </div>
+
+        <div className="space-y-6">
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Quick add</p>
+            <h3 className="mt-2 text-xl font-extrabold text-slate">Add item to shopping cart</h3>
+            <form className="mt-4 grid gap-3" onSubmit={handleAddCartItem}>
+              <input className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none focus:border-moss" placeholder="Item name (e.g. Olive Oil)" value={cartForm.name} onChange={(event) => setCartForm((current) => ({ ...current, name: event.target.value }))} required />
+              <div className="grid grid-cols-2 gap-3">
+                <input className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none focus:border-moss" type="number" min="0.5" step="0.5" aria-label="Cart item quantity" value={cartForm.quantity} onChange={(event) => setCartForm((current) => ({ ...current, quantity: event.target.value }))} required />
+                <input className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none focus:border-moss" type="number" min="0" step="0.01" aria-label="Cart item price" value={cartForm.price} onChange={(event) => setCartForm((current) => ({ ...current, price: event.target.value }))} required />
+              </div>
+              <button className="rounded-2xl bg-moss px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#255a32]" type="submit">Add to cart</button>
+            </form>
+          </SectionCard>
+
+          <SectionCard>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Cart</p>
+                <h3 className="mt-1 text-2xl font-extrabold text-slate">Shopping list</h3>
+              </div>
+              {cartItems.length ? (
+                <div className="flex flex-wrap gap-2">
+                  <button className="rounded-xl bg-moss px-3 py-2 text-xs font-extrabold text-white transition hover:bg-[#255a32]" type="button" onClick={checkoutCartToPantry}>
+                    Checkout &amp; restock pantry
+                  </button>
+                  <button className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600" type="button" onClick={() => cartMutation.mutate([])}>
+                    Clear cart
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-4 grid max-h-[28rem] gap-3 overflow-y-auto pr-2">
+              {cartItems.length ? cartItems.map((item) => (
+                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-fern px-4 py-3">
+                  <div>
+                    <p className="font-bold text-slate">{item.name}</p>
+                    <p className="text-sm text-stone-500">{item.quantity} × ${Number(item.price).toFixed(2)} = <span className="font-bold text-slate">${(item.quantity * item.price).toFixed(2)}</span></p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="rounded-xl bg-white px-2.5 py-1.5 text-xs font-extrabold text-slate" type="button" onClick={() => adjustCartQuantity(item.id, -1)}>-</button>
+                    <button className="rounded-xl bg-white px-2.5 py-1.5 text-xs font-extrabold text-slate" type="button" onClick={() => adjustCartQuantity(item.id, 1)}>+</button>
+                    <button className="rounded-2xl bg-white px-3 py-1.5 text-xs font-semibold text-red-600" type="button" onClick={() => removeCartItem(item.id)}>
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )) : <p className="text-sm text-stone-500">Your cart is empty.</p>}
+            </div>
+          </SectionCard>
+        </div>
       </div>
     );
   }
@@ -661,6 +1088,7 @@ export default function App() {
                         <p className="mt-1 text-xs font-bold text-amber-700">{meal.missing_ingredients.length} missing item{meal.missing_ingredients.length === 1 ? "" : "s"}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        <button className="rounded-xl bg-moss px-3 py-2 text-xs font-extrabold text-white" type="button" disabled={cookMealMutation.isPending} onClick={() => cookMealMutation.mutate(day)}>Mark cooked</button>
                         {meal.missing_ingredients.length ? <button className="rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-moss" type="button" onClick={() => missingToCartMutation.mutate(day)}>Add to cart</button> : null}
                         <button className="rounded-xl px-2 py-2 text-xs font-bold text-red-600" type="button" onClick={() => removeMealMutation.mutate(day)}>Remove</button>
                       </div>
@@ -672,6 +1100,11 @@ export default function App() {
           </div>
           {missingToCartMutation.isError ? <p className="mt-4 text-sm font-medium text-red-600">{missingToCartMutation.error.message}</p> : null}
           {missingToCartMutation.isSuccess ? <p className="mt-4 text-sm font-bold text-moss">Missing ingredients were added to your cart.</p> : null}
+          {cookMealMutation.isSuccess ? (
+            <p className="mt-4 text-sm font-bold text-moss">
+              Marked {cookMealMutation.data.day}&apos;s meal cooked! Logged {cookMealMutation.data.logged_calories} kcal to Nutrition and updated {cookMealMutation.data.deducted_items.length} pantry item(s).
+            </p>
+          ) : null}
         </SectionCard>
 
         <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
@@ -723,24 +1156,92 @@ export default function App() {
   }
 
   function renderNutritionPanel() {
+    const consumedCalories = nutrition.calorie_entries.reduce((sum, entry) => sum + Number(entry.calories || 0), 0);
+    const totalProtein = nutrition.calorie_entries.reduce((sum, entry) => sum + Number(entry.protein || 0), 0);
+    const totalCarbs = nutrition.calorie_entries.reduce((sum, entry) => sum + Number(entry.carbs || 0), 0);
+    const totalFat = nutrition.calorie_entries.reduce((sum, entry) => sum + Number(entry.fat || 0), 0);
+    const progressPct = Math.min(100, Math.round((consumedCalories / Math.max(1, nutrition.calorie_target)) * 100));
+
+    function handleTargetSubmit(event) {
+      event.preventDefault();
+      nutritionMutation.mutate({
+        calorie_target: Math.max(1200, Number(calorieTargetInput) || 2000),
+        calorie_entries: nutrition.calorie_entries,
+      });
+    }
+
+    function handleLogMeal(event) {
+      event.preventDefault();
+      if (!nutritionForm.item_name.trim()) return;
+      const nextEntry = {
+        id: Date.now(),
+        item_name: nutritionForm.item_name.trim(),
+        servings: Number(nutritionForm.servings),
+        calories: Number(nutritionForm.calories),
+        protein: Number(nutritionForm.protein),
+        carbs: Number(nutritionForm.carbs),
+        fat: Number(nutritionForm.fat),
+        fiber: Number(nutritionForm.fiber),
+      };
+      nutritionMutation.mutate({
+        calorie_target: nutrition.calorie_target,
+        calorie_entries: [nextEntry, ...nutrition.calorie_entries],
+      });
+      setNutritionForm({ item_name: "", servings: 1, calories: 250, protein: 12, carbs: 30, fat: 8, fiber: 4 });
+    }
+
+    function removeNutritionEntry(entryId) {
+      nutritionMutation.mutate({
+        calorie_target: nutrition.calorie_target,
+        calorie_entries: nutrition.calorie_entries.filter((entry) => entry.id !== entryId),
+      });
+    }
+
     return (
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard>
-          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Nutrition</p>
-          <h3 className="mt-2 text-2xl font-extrabold text-slate">Daily target</h3>
-          <p className="mt-2 text-sm text-stone-500">{nutrition.calorie_entries.length} logged entries against a {nutrition.calorie_target} calorie goal.</p>
-        </SectionCard>
+        <div className="space-y-6">
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Nutrition</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">Daily target</h3>
+            <p className="mt-3 text-3xl font-extrabold text-slate">{Math.round(consumedCalories)} <span className="text-lg font-bold text-stone-400">/ {nutrition.calorie_target} kcal</span></p>
+            <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-fern">
+              <div className="h-full rounded-full bg-moss transition-all" style={{ width: `${progressPct}%` }} />
+            </div>
+            <p className="mt-3 text-sm text-stone-500">Protein {Math.round(totalProtein)}g • Carbs {Math.round(totalCarbs)}g • Fat {Math.round(totalFat)}g</p>
+            <form className="mt-4 flex gap-2" onSubmit={handleTargetSubmit}>
+              <input className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-moss" type="number" min="1200" step="50" value={calorieTargetInput} onChange={(event) => setCalorieTargetInput(event.target.value)} required />
+              <button className="shrink-0 rounded-2xl bg-slate px-4 py-2.5 text-sm font-bold text-white" type="submit">Update goal</button>
+            </form>
+          </SectionCard>
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Log meal</p>
+            <h3 className="mt-2 text-xl font-extrabold text-slate">Add nutrition entry</h3>
+            <form className="mt-4 grid gap-3" onSubmit={handleLogMeal}>
+              <input className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-moss" placeholder="Meal name" value={nutritionForm.item_name} onChange={(event) => setNutritionForm((current) => ({ ...current, item_name: event.target.value }))} required />
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-xs font-bold text-stone-500">Calories<input className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-slate" type="number" min="0" value={nutritionForm.calories} onChange={(event) => setNutritionForm((current) => ({ ...current, calories: event.target.value }))} required /></label>
+                <label className="text-xs font-bold text-stone-500">Protein (g)<input className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-slate" type="number" min="0" value={nutritionForm.protein} onChange={(event) => setNutritionForm((current) => ({ ...current, protein: event.target.value }))} required /></label>
+                <label className="text-xs font-bold text-stone-500">Carbs (g)<input className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-slate" type="number" min="0" value={nutritionForm.carbs} onChange={(event) => setNutritionForm((current) => ({ ...current, carbs: event.target.value }))} required /></label>
+                <label className="text-xs font-bold text-stone-500">Fat (g)<input className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-slate" type="number" min="0" value={nutritionForm.fat} onChange={(event) => setNutritionForm((current) => ({ ...current, fat: event.target.value }))} required /></label>
+              </div>
+              <button className="rounded-2xl bg-moss px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#255a32]" type="submit">Log entry</button>
+            </form>
+          </SectionCard>
+        </div>
         <SectionCard>
           <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Meal log</p>
-          <div className="mt-4 grid max-h-[30rem] gap-3 overflow-y-auto pr-2">
+          <div className="mt-4 grid max-h-[34rem] gap-3 overflow-y-auto pr-2">
             {nutrition.calorie_entries.length ? nutrition.calorie_entries.map((entry) => (
-              <div key={entry.id} className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
-                <p className="font-bold text-slate">{entry.item_name}</p>
-                <p className="mt-1 text-sm text-stone-500">
-                  {entry.servings} serving(s) • {entry.calories} cal • P {entry.protein} • C {entry.carbs} • F {entry.fat} • Fiber {entry.fiber}
-                </p>
+              <div key={entry.id} className="flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
+                <div>
+                  <p className="font-bold text-slate">{entry.item_name}</p>
+                  <p className="mt-1 text-sm text-stone-500">
+                    {entry.servings} serving(s) • {entry.calories} cal • P {entry.protein}g • C {entry.carbs}g • F {entry.fat}g • Fiber {entry.fiber}g
+                  </p>
+                </div>
+                <button className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-red-600" type="button" onClick={() => removeNutritionEntry(entry.id)}>Remove</button>
               </div>
-            )) : <p className="text-sm text-stone-500">Log meals from Inventory to see them here.</p>}
+            )) : <p className="text-sm text-stone-500">Log meals here or from Inventory to see them.</p>}
           </div>
         </SectionCard>
       </div>
@@ -748,24 +1249,287 @@ export default function App() {
   }
 
   function renderProfilePanel() {
+    function toggleFocusedMode() {
+      saveProfilePatch({ active_tab: activeTab, focused_mode: !profile.focused_mode });
+    }
+
+    function handleHouseholdSave(event) {
+      event.preventDefault();
+      saveProfilePatch({
+        active_tab: activeTab,
+        household_size: Math.max(1, Number(householdForm.household_size) || 2),
+        cooking_skill: householdForm.cooking_skill,
+        max_prep_minutes: Math.max(5, Number(householdForm.max_prep_minutes) || 30),
+      });
+    }
+
+    function addProfileTag(field, value, setter) {
+      const trimmed = value.trim();
+      const current = profile[field] ?? [];
+      if (!trimmed || current.includes(trimmed)) return;
+      saveProfilePatch({ active_tab: activeTab, [field]: [...current, trimmed] });
+      setter("");
+    }
+
+    function removeProfileTag(field, value) {
+      const current = profile[field] ?? [];
+      saveProfilePatch({ active_tab: activeTab, [field]: current.filter((item) => item !== value) });
+    }
+
     return (
-      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard>
-          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Profile</p>
-          <h3 className="mt-2 text-2xl font-extrabold text-slate">Workspace settings</h3>
-          <p className="mt-2 text-sm text-stone-500">Active tab: {profile.active_tab}. Focus mode: {profile.focused_mode ? "On" : "Off"}.</p>
-        </SectionCard>
-        <SectionCard>
-          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Account</p>
-          <h3 className="mt-2 text-2xl font-extrabold text-slate">{user?.name || "Grocify user"}</h3>
-          <p className="mt-2 text-sm text-stone-500">{user?.email}</p>
-          <p className="mt-4 text-sm text-stone-500">Custom ingredients: {profile.custom_ingredients.length ? profile.custom_ingredients.join(", ") : "None yet"}.</p>
-        </SectionCard>
+      <div className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Household profile</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">People &amp; cooking setup</h3>
+            <p className="mt-1 text-sm text-stone-500">Used to tailor AI recipes, serving sizes, and weekly meal planning.</p>
+            <form className="mt-5 grid gap-4" onSubmit={handleHouseholdSave}>
+              <label className="text-sm font-bold text-stone-600">
+                Number of people in household
+                <input
+                  className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-normal text-slate outline-none focus:border-moss"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={householdForm.household_size}
+                  onChange={(event) => setHouseholdForm((current) => ({ ...current, household_size: event.target.value }))}
+                  required
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-sm font-bold text-stone-600">
+                  Cooking level
+                  <select
+                    className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-normal text-slate outline-none focus:border-moss"
+                    value={householdForm.cooking_skill}
+                    onChange={(event) => setHouseholdForm((current) => ({ ...current, cooking_skill: event.target.value }))}
+                  >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </label>
+                <label className="text-sm font-bold text-stone-600">
+                  Max prep time (min)
+                  <input
+                    className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-normal text-slate outline-none focus:border-moss"
+                    type="number"
+                    min="5"
+                    max="240"
+                    step="5"
+                    value={householdForm.max_prep_minutes}
+                    onChange={(event) => setHouseholdForm((current) => ({ ...current, max_prep_minutes: event.target.value }))}
+                    required
+                  />
+                </label>
+              </div>
+              <button className="rounded-2xl bg-moss px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#255a32]" type="submit">
+                Save household settings
+              </button>
+            </form>
+          </SectionCard>
+
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Tastes &amp; preferences</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">Cuisines, likes &amp; allergies</h3>
+            <div className="mt-5 space-y-5">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">Preferred cuisines</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(profile.preferred_cuisines ?? []).map((item) => (
+                    <span key={item} className="inline-flex items-center gap-2 rounded-full bg-fern px-3 py-1.5 text-sm font-semibold text-slate">
+                      {item}
+                      <button className="text-xs font-extrabold text-red-600" type="button" onClick={() => removeProfileTag("preferred_cuisines", item)}>×</button>
+                    </span>
+                  ))}
+                </div>
+                <form className="mt-2.5 flex gap-2" onSubmit={(e) => { e.preventDefault(); addProfileTag("preferred_cuisines", cuisineInput, setCuisineInput); }}>
+                  <input className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-moss" placeholder="Add cuisine (e.g. South Indian, Thai)" value={cuisineInput} onChange={(e) => setCuisineInput(e.target.value)} />
+                  <button className="shrink-0 rounded-2xl bg-slate px-4 py-2 text-xs font-bold text-white" type="submit">Add</button>
+                </form>
+              </div>
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">Dietary likes &amp; goals</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(profile.dietary_preferences ?? []).map((item) => (
+                    <span key={item} className="inline-flex items-center gap-2 rounded-full bg-sand px-3 py-1.5 text-sm font-semibold text-slate">
+                      {item}
+                      <button className="text-xs font-extrabold text-red-600" type="button" onClick={() => removeProfileTag("dietary_preferences", item)}>×</button>
+                    </span>
+                  ))}
+                </div>
+                <form className="mt-2.5 flex gap-2" onSubmit={(e) => { e.preventDefault(); addProfileTag("dietary_preferences", dietInput, setDietInput); }}>
+                  <input className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-moss" placeholder="Add preference (e.g. Vegetarian, High-Protein)" value={dietInput} onChange={(e) => setDietInput(e.target.value)} />
+                  <button className="shrink-0 rounded-2xl bg-slate px-4 py-2 text-xs font-bold text-white" type="submit">Add</button>
+                </form>
+              </div>
+
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">Allergies &amp; items to avoid</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(profile.allergies ?? []).map((item) => (
+                    <span key={item} className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700">
+                      {item}
+                      <button className="text-xs font-extrabold text-red-700" type="button" onClick={() => removeProfileTag("allergies", item)}>×</button>
+                    </span>
+                  ))}
+                </div>
+                <form className="mt-2.5 flex gap-2" onSubmit={(e) => { e.preventDefault(); addProfileTag("allergies", allergyInput, setAllergyInput); }}>
+                  <input className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-moss" placeholder="Add allergy or dislike (e.g. Peanuts, Shellfish)" value={allergyInput} onChange={(e) => setAllergyInput(e.target.value)} />
+                  <button className="shrink-0 rounded-2xl bg-slate px-4 py-2 text-xs font-bold text-white" type="submit">Add</button>
+                </form>
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Workspace &amp; system</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">Settings &amp; architecture</h3>
+            <p className="mt-2 text-sm text-stone-500">Focus mode: {profile.focused_mode ? "On" : "Off"}.</p>
+            <button className="mt-4 rounded-2xl bg-fern px-4 py-2.5 text-sm font-extrabold text-moss transition hover:bg-stone-100" type="button" onClick={toggleFocusedMode}>
+              {profile.focused_mode ? "Disable focus mode" : "Enable focus mode"}
+            </button>
+            <div className="mt-6 border-t border-stone-100 pt-5">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">System architecture status</p>
+              <div className="mt-3 grid gap-2 text-sm">
+                <div className="flex items-center justify-between rounded-2xl bg-fern px-4 py-2.5">
+                  <span className="font-bold text-slate">FastAPI Backend</span>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700">{healthQuery.data?.status === "ok" ? "Online" : "Checking..."}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-fern px-4 py-2.5">
+                  <span className="font-bold text-slate">PostgreSQL Database</span>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700">{healthQuery.data?.database || "checking"}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-fern px-4 py-2.5">
+                  <span className="font-bold text-slate">Redis Blackboard Cache</span>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700">{healthQuery.data?.redis || "checking"}</span>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Account</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">{user?.name || "Grocify user"}</h3>
+            <p className="mt-2 text-sm text-stone-500">{user?.email}</p>
+            <div className="mt-5">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">Pantry staples / custom ingredients</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {profile.custom_ingredients.length ? profile.custom_ingredients.map((item) => (
+                  <span key={item} className="inline-flex items-center gap-2 rounded-full bg-fern px-3 py-1.5 text-sm font-semibold text-slate">
+                    {item}
+                    <button className="text-xs font-extrabold text-red-600" type="button" onClick={() => removeProfileTag("custom_ingredients", item)}>×</button>
+                  </span>
+                )) : <p className="text-sm text-stone-500">None yet.</p>}
+              </div>
+              <form className="mt-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); addProfileTag("custom_ingredients", customIngredientInput, setCustomIngredientInput); }}>
+                <input className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-moss" placeholder="Add staple (e.g. Ginger)" value={customIngredientInput} onChange={(event) => setCustomIngredientInput(event.target.value)} />
+                <button className="shrink-0 rounded-2xl bg-moss px-4 py-2.5 text-sm font-bold text-white" type="submit">Add</button>
+              </form>
+            </div>
+          </SectionCard>
+        </div>
+      </div>
+    );
+  }
+
+  function renderDashboardPanel() {
+    const consumedCalories = nutrition.calorie_entries.reduce((sum, entry) => sum + Number(entry.calories || 0), 0);
+    const scheduledMeals = mealPlanQuery.data?.meals ?? [];
+    const topMealIdea = recommendationsQuery.data?.meal_ideas?.[0];
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-[2rem] border border-white/90 bg-white/90 px-6 py-6 shadow-card backdrop-blur sm:px-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Today&apos;s kitchen</p>
+              <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate sm:text-4xl">Welcome back, {user?.name || "Grocify user"}</h2>
+              <p className="mt-2 max-w-2xl text-sm text-stone-500">
+                Keep your pantry organized, catch expiring ingredients early, and stay on top of your shopping plan.
+              </p>
+            </div>
+            <div className={`rounded-full px-4 py-2 text-sm font-bold ${saveState.includes("saved") ? "bg-emerald-50 text-emerald-700" : saveState.includes("Saving") ? "bg-blue-50 text-blue-700" : "bg-red-50 text-red-600"}`}>
+              {saveState}
+            </div>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <button className="rounded-3xl bg-fern px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-card" type="button" onClick={() => updateActiveTab("inventory")}>
+              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Pantry Items</p>
+              <p className="mt-2 text-3xl font-extrabold text-slate">{pantryItems.length}</p>
+              <p className="mt-1 text-sm text-stone-500">Items currently available in your kitchen.</p>
+            </button>
+            <button className="rounded-3xl bg-[#fff8e8] px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-card" type="button" onClick={() => updateActiveTab("planner")}>
+              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Expiring Soon</p>
+              <p className="mt-2 text-3xl font-extrabold text-slate">{expiringSoonCount}</p>
+              <p className="mt-1 text-sm text-stone-500">Use these within the next 3 days.</p>
+            </button>
+            <button className="rounded-3xl bg-sand px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-card" type="button" onClick={() => updateActiveTab("budget")}>
+              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Cart Total</p>
+              <p className="mt-2 text-3xl font-extrabold text-slate">${cartTotal.toFixed(2)}</p>
+              <p className="mt-1 text-sm text-stone-500">{cartItems.length} item(s) in your shopping cart.</p>
+            </button>
+          </div>
+        </div>
+
+        {urgentPantryItems.length ? (
+          <section className="overflow-hidden rounded-[2rem] border border-amber-200 bg-[#fff7e7] shadow-card">
+            <div className="flex flex-col gap-5 p-6 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-amber-800">Expiry alert</p>
+                <h3 className="mt-2 text-2xl font-extrabold text-slate">Use these ingredients before they go to waste.</h3>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {urgentPantryItems.slice(0, 4).map((item) => <span key={item.id} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-stone-700">{item.name} <span className="text-amber-700">{item.days_left}d left</span></span>)}
+                  {urgentPantryItems.length > 4 ? <span className="rounded-full bg-white px-3 py-2 text-sm font-bold text-stone-500">+{urgentPantryItems.length - 4} more</span> : null}
+                </div>
+              </div>
+              <button className="shrink-0 rounded-2xl bg-amber-500 px-5 py-3 font-extrabold text-slate transition hover:-translate-y-0.5 hover:bg-amber-400" type="button" onClick={planExpiringItems}>
+                Create a rescue recipe
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        <div className="grid gap-6 md:grid-cols-3">
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Meal recommender</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">{topMealIdea ? topMealIdea.title : "Freshness-first ideas"}</h3>
+            <p className="mt-2 text-sm text-stone-500">
+              {topMealIdea ? `${topMealIdea.description} (~${topMealIdea.estimated_calories} cal)` : "Add pantry items for automatic meal recommendations."}
+            </p>
+            <button className="mt-5 rounded-2xl bg-fern px-4 py-2.5 text-sm font-extrabold text-moss transition hover:bg-stone-100" type="button" onClick={() => updateActiveTab("planner")}>
+              See all ideas
+            </button>
+          </SectionCard>
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Weekly planner</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">{scheduledMeals.length} meals scheduled</h3>
+            <p className="mt-2 text-sm text-stone-500">
+              {scheduledMeals.length ? `Next up: ${scheduledMeals[0].day} — ${scheduledMeals[0].title}.` : "No meals scheduled for this week yet."}
+            </p>
+            <button className="mt-5 rounded-2xl bg-fern px-4 py-2.5 text-sm font-extrabold text-moss transition hover:bg-stone-100" type="button" onClick={() => updateActiveTab("planner")}>
+              Open planner
+            </button>
+          </SectionCard>
+          <SectionCard>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Daily nutrition</p>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">{Math.round(consumedCalories)} / {nutrition.calorie_target} kcal</h3>
+            <p className="mt-2 text-sm text-stone-500">{nutrition.calorie_entries.length} meal(s) logged today.</p>
+            <button className="mt-5 rounded-2xl bg-fern px-4 py-2.5 text-sm font-extrabold text-moss transition hover:bg-stone-100" type="button" onClick={() => updateActiveTab("nutrition")}>
+              View nutrition log
+            </button>
+          </SectionCard>
+        </div>
       </div>
     );
   }
 
   function renderActivePanel() {
+    if (activeTab === "dashboard") {
+      return renderDashboardPanel();
+    }
     if (activeTab === "budget") {
       return renderBudgetPanel();
     }
@@ -805,7 +1569,7 @@ export default function App() {
                 onClick={() => updateActiveTab(tab)}
                 className={`whitespace-nowrap rounded-2xl px-4 py-3 text-left font-bold capitalize transition xl:w-full ${activeTab === tab ? "bg-gradient-to-r from-moss to-[#245a35] text-white shadow-lg shadow-moss/20" : "bg-fern text-stone-600 hover:bg-stone-100"}`}
               >
-                {tab}
+                {tab === "dashboard" ? "Home Dashboard" : tab}
               </button>
             ))}
           </nav>
@@ -824,54 +1588,16 @@ export default function App() {
         </aside>
 
         <main className="min-w-0 flex-1 space-y-6">
-          <div className="rounded-[2rem] border border-white/90 bg-white/90 px-6 py-6 shadow-card backdrop-blur sm:px-8">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+          {activeTab !== "dashboard" ? (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-white/90 bg-white/90 px-6 py-5 shadow-card backdrop-blur sm:px-8">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Today&apos;s kitchen</p>
-                <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate sm:text-4xl">Welcome back, {user?.name || "Grocify user"}</h2>
-                <p className="mt-2 max-w-2xl text-sm text-stone-500">
-                  Keep your pantry organized, catch expiring ingredients early, and stay on top of your shopping plan.
-                </p>
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Grocify</p>
+                <h2 className="mt-1 text-2xl font-extrabold capitalize tracking-tight text-slate sm:text-3xl">{activeTab}</h2>
               </div>
               <div className={`rounded-full px-4 py-2 text-sm font-bold ${saveState.includes("saved") ? "bg-emerald-50 text-emerald-700" : saveState.includes("Saving") ? "bg-blue-50 text-blue-700" : "bg-red-50 text-red-600"}`}>
                 {saveState}
               </div>
             </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <button className="rounded-3xl bg-fern px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-card" type="button" onClick={() => updateActiveTab("inventory")}>
-                <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Pantry Items</p>
-                <p className="mt-2 text-3xl font-extrabold text-slate">{pantryItems.length}</p>
-                <p className="mt-1 text-sm text-stone-500">Items currently available in your kitchen.</p>
-              </button>
-              <button className="rounded-3xl bg-[#fff8e8] px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-card" type="button" onClick={() => updateActiveTab("planner")}>
-                <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Expiring Soon</p>
-                <p className="mt-2 text-3xl font-extrabold text-slate">{expiringSoonCount}</p>
-                <p className="mt-1 text-sm text-stone-500">Use these within the next 3 days.</p>
-              </button>
-              <button className="rounded-3xl bg-sand px-5 py-4 text-left transition hover:-translate-y-0.5 hover:shadow-card" type="button" onClick={() => updateActiveTab("budget")}>
-                <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-moss">Cart Total</p>
-                <p className="mt-2 text-3xl font-extrabold text-slate">${cartTotal.toFixed(2)}</p>
-                <p className="mt-1 text-sm text-stone-500 capitalize">{activeTab} workspace active.</p>
-              </button>
-            </div>
-          </div>
-
-          {urgentPantryItems.length ? (
-            <section className="overflow-hidden rounded-[2rem] border border-amber-200 bg-[#fff7e7] shadow-card">
-              <div className="flex flex-col gap-5 p-6 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-amber-800">Expiry alert</p>
-                  <h3 className="mt-2 text-2xl font-extrabold text-slate">Use these ingredients before they go to waste.</h3>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {urgentPantryItems.slice(0, 4).map((item) => <span key={item.id} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-stone-700">{item.name} <span className="text-amber-700">{item.days_left}d left</span></span>)}
-                    {urgentPantryItems.length > 4 ? <span className="rounded-full bg-white px-3 py-2 text-sm font-bold text-stone-500">+{urgentPantryItems.length - 4} more</span> : null}
-                  </div>
-                </div>
-                <button className="shrink-0 rounded-2xl bg-amber-500 px-5 py-3 font-extrabold text-slate transition hover:-translate-y-0.5 hover:bg-amber-400" type="button" onClick={planExpiringItems}>
-                  Create a rescue recipe
-                </button>
-              </div>
-            </section>
           ) : null}
 
           {renderActivePanel()}

@@ -7,3 +7,9 @@ class ProfileResponse(BaseModel):
     custom_recipe_name_value: str = Field(default="", max_length=255)
     custom_ingredients: list[str]
     calorie_target: int = Field(ge=1200)
+    household_size: int = Field(default=2, ge=1, le=20)
+    preferred_cuisines: list[str] = Field(default_factory=list)
+    dietary_preferences: list[str] = Field(default_factory=list)
+    allergies: list[str] = Field(default_factory=list)
+    cooking_skill: str = Field(default="Intermediate", max_length=40)
+    max_prep_minutes: int = Field(default=30, ge=5, le=240)

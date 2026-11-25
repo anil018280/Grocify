@@ -19,16 +19,38 @@ class BlackboardService:
         key = self.build_key(session_id, namespace)
         serialized = json.dumps(payload)
         lock_key = f"{key}:lock"
-        lock_acquired = self.client.set(lock_key, "1", ex=30, nx=True)
-        if not lock_acquired:
-            return False
         try:
-            self.client.set(key, serialized, ex=timedelta(seconds=ttl_seconds))
-            return True
-        finally:
-            self.client.delete(lock_key)
+            lock_acquired = self.client.set(lock_key, "1", ex=30, nx=True)
+            if not lock_acquired:
+                return False
+            try:
+                self.client.set(key, serialized, ex=timedelta(seconds=ttl_seconds))
+                return True
+            finally:
+                self.client.delete(lock_key)
+        except redis.RedisError:
+            return False
 
     def get(self, session_id: str, namespace: str) -> dict | None:
         key = self.build_key(session_id, namespace)
-        raw = self.client.get(key)
-        return json.loads(raw) if raw else None
+        try:
+            raw = self.client.get(key)
+            return json.loads(raw) if raw else None
+        except redis.RedisError:
+            return None
+
+    def invalidate(self, session_id: str, namespace: str) -> None:
+        key = self.build_key(session_id, namespace)
+        try:
+            self.client.delete(key)
+        except redis.RedisError:
+            pass
+
+    def ping(self) -> bool:
+        try:
+            return bool(self.client.ping())
+        except redis.RedisError:
+            return False
+
+
+blackboard = BlackboardService()
