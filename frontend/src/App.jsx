@@ -7,12 +7,15 @@ import plannerHero from "./assets/ai-meal-planner-hero.png";
 
 const tabs = ["dashboard", "inventory", "planner", "budget", "nutrition", "profile"];
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const pantryLocations = ["Home", "Dorm", "Shared Household", "Freezer"];
+const applianceOptions = ["Stovetop", "Oven", "Air Fryer", "Instant Pot", "Microwave"];
 
 const emptyForm = {
   name: "",
   quantity: 1,
   unit: "pcs",
   category: "Produce",
+  location: "Home",
   days_left: 5,
   price: 3.5,
 };
@@ -122,8 +125,15 @@ export default function App() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [inventorySearch, setInventorySearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [recipeForm, setRecipeForm] = useState({ preferences: "", allergies: "", servings: 2, budget: 20 });
+  const [activeLocation, setActiveLocation] = useState("All");
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [recipeForm, setRecipeForm] = useState({ preferences: "", allergies: "", servings: 2, budget: 20, max_prep_minutes: 30, appliances: [] });
   const [selectedPlanDay, setSelectedPlanDay] = useState("Monday");
+  const [nutritionSearchQuery, setNutritionSearchQuery] = useState("");
+  const [nutritionLookupSource, setNutritionLookupSource] = useState("");
+  const [inviteForm, setInviteForm] = useState({ member_name: "", member_email: "", role: "Editor" });
+  const [notifyForm, setNotifyForm] = useState({ notify_email_enabled: true, notify_push_enabled: false, notify_days_threshold: 3, notification_email: "" });
+  const [notifyStatusMsg, setNotifyStatusMsg] = useState("");
   const [cartForm, setCartForm] = useState({ name: "", quantity: 1, price: 2.5 });
   const [weeklyBudget, setWeeklyBudget] = useState(() => {
     const saved = window.localStorage.getItem("grocify_weekly_budget");
@@ -190,6 +200,18 @@ export default function App() {
     enabled: Boolean(token),
   });
 
+  const savedRecipesQuery = useQuery({
+    queryKey: ["saved-recipes"],
+    queryFn: () => apiRequest("/recommendations/saved", { token }),
+    enabled: Boolean(token),
+  });
+
+  const householdMembersQuery = useQuery({
+    queryKey: ["household-members"],
+    queryFn: () => apiRequest("/profile/household-members", { token }),
+    enabled: Boolean(token),
+  });
+
   const pantryItems = pantryQuery.data?.pantry ?? [];
   const cartItems = cartQuery.data?.cart_items ?? [];
   const nutrition = nutritionQuery.data ?? { calorie_target: 2000, calorie_entries: [] };
@@ -205,6 +227,10 @@ export default function App() {
     allergies: [],
     cooking_skill: "Intermediate",
     max_prep_minutes: 30,
+    notify_email_enabled: true,
+    notify_push_enabled: false,
+    notify_days_threshold: 3,
+    notification_email: "",
   };
 
   const pantryMutation = useMutation({
@@ -285,6 +311,84 @@ export default function App() {
     },
   });
 
+  const generateWeekMutation = useMutation({
+    mutationFn: () => apiRequest("/meal-plan/generate-week", { method: "POST", token }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meal-plan"] }),
+  });
+
+  const saveRecipeMutation = useMutation({
+    mutationFn: (payload) => apiRequest("/recommendations/saved", { method: "POST", body: payload, token }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["saved-recipes"] }),
+  });
+
+  const rateRecipeMutation = useMutation({
+    mutationFn: ({ id, rating }) => apiRequest(`/recommendations/saved/${id}/rate`, { method: "PATCH", body: { rating }, token }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["saved-recipes"] }),
+  });
+
+  const deleteSavedRecipeMutation = useMutation({
+    mutationFn: (id) => apiRequest(`/recommendations/saved/${id}`, { method: "DELETE", token }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["saved-recipes"] }),
+  });
+
+  const barcodeMutation = useMutation({
+    mutationFn: (code) => apiRequest(`/pantry/barcode/${encodeURIComponent(code)}`, { token }),
+  });
+
+  const priceCompareMutation = useMutation({
+    mutationFn: () => apiRequest("/cart/price-compare", { method: "POST", token }),
+  });
+
+  const nutritionLookupMutation = useMutation({
+    mutationFn: (q) => apiRequest(`/nutrition/lookup?q=${encodeURIComponent(q)}`, { token }),
+    onSuccess: (data) => {
+      setNutritionForm({
+        item_name: data.item_name,
+        servings: data.servings || 1,
+        calories: data.calories,
+        protein: data.protein,
+        carbs: data.carbs,
+        fat: data.fat,
+        fiber: data.fiber,
+      });
+      setNutritionLookupSource(data.source || "");
+    },
+  });
+
+  const inviteMemberMutation = useMutation({
+    mutationFn: (payload) => apiRequest("/profile/household-members", { method: "POST", body: payload, token }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["household-members"] });
+      setInviteForm({ member_name: "", member_email: "", role: "Editor" });
+    },
+  });
+
+  const updateMemberRoleMutation = useMutation({
+    mutationFn: ({ id, role }) => apiRequest(`/profile/household-members/${id}`, { method: "PATCH", body: { role }, token }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["household-members"] }),
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: (id) => apiRequest(`/profile/household-members/${id}`, { method: "DELETE", token }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["household-members"] }),
+  });
+
+  const testNotifyMutation = useMutation({
+    mutationFn: () => apiRequest("/profile/test-notification", { method: "POST", token }),
+    onSuccess: (data) => {
+      setNotifyStatusMsg(`${data.channels.join(" + ")}: ${data.message}`);
+      if (notifyForm.notify_push_enabled && "Notification" in window) {
+        if (Notification.permission === "granted") {
+          new Notification("Grocify Expiry Alert", { body: data.message });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then((perm) => {
+            if (perm === "granted") new Notification("Grocify Expiry Alert", { body: data.message });
+          });
+        }
+      }
+    },
+  });
+
   const scanPhotoMutation = useMutation({
     mutationFn: (image_data_url) => apiRequest("/pantry/scan-photo", {
       method: "POST",
@@ -315,11 +419,18 @@ export default function App() {
         cooking_skill: profileQuery.data.cooking_skill || "Intermediate",
         max_prep_minutes: profileQuery.data.max_prep_minutes ?? 30,
       });
+      setNotifyForm({
+        notify_email_enabled: Boolean(profileQuery.data.notify_email_enabled),
+        notify_push_enabled: Boolean(profileQuery.data.notify_push_enabled),
+        notify_days_threshold: profileQuery.data.notify_days_threshold ?? 3,
+        notification_email: profileQuery.data.notification_email || "",
+      });
       setRecipeForm((current) => ({
         ...current,
         servings: current.servings || profileQuery.data.household_size || 2,
         preferences: current.preferences || (profileQuery.data.preferred_cuisines || []).join(", "),
         allergies: current.allergies || (profileQuery.data.allergies || []).join(", "),
+        max_prep_minutes: profileQuery.data.max_prep_minutes ?? current.max_prep_minutes ?? 30,
       }));
     }
   }, [profileQuery.data]);
@@ -345,6 +456,7 @@ export default function App() {
       quantity: item.quantity,
       unit: item.unit,
       category: item.category,
+      location: item.location || "Home",
       days_left: item.days_left,
       price: item.price,
     });
@@ -508,6 +620,10 @@ export default function App() {
       allergies: patch.allergies ?? profile.allergies ?? [],
       cooking_skill: patch.cooking_skill ?? profile.cooking_skill ?? "Intermediate",
       max_prep_minutes: patch.max_prep_minutes ?? profile.max_prep_minutes ?? 30,
+      notify_email_enabled: patch.notify_email_enabled ?? profile.notify_email_enabled ?? true,
+      notify_push_enabled: patch.notify_push_enabled ?? profile.notify_push_enabled ?? false,
+      notify_days_threshold: patch.notify_days_threshold ?? profile.notify_days_threshold ?? 3,
+      notification_email: patch.notification_email ?? profile.notification_email ?? "",
     });
   }
 
@@ -517,12 +633,14 @@ export default function App() {
   }
 
   function generateAiRecipe(event) {
-    event.preventDefault();
+    if (event) event.preventDefault();
     recipeMutation.mutate({
       preferences: recipeForm.preferences,
       allergies: recipeForm.allergies.split(",").map((entry) => entry.trim()).filter(Boolean),
       servings: Number(recipeForm.servings),
       budget: Number(recipeForm.budget),
+      max_prep_minutes: Number(recipeForm.max_prep_minutes) || 30,
+      appliances: recipeForm.appliances || [],
     });
   }
 
@@ -541,9 +659,12 @@ export default function App() {
   function renderInventoryPanel() {
     const expiringSoon = pantryItems.filter((item) => Number(item.days_left) <= 3).length;
     const categories = ["All", ...new Set(pantryItems.map((item) => item.category).filter(Boolean))];
+    const locations = ["All", ...new Set([...pantryLocations, ...pantryItems.map((item) => item.location || "Home")])];
     const visibleItems = pantryItems.filter((item) => {
       const matchesSearch = item.name.toLowerCase().includes(inventorySearch.toLowerCase());
-      return matchesSearch && (activeCategory === "All" || item.category === activeCategory);
+      const matchesCategory = activeCategory === "All" || item.category === activeCategory;
+      const matchesLocation = activeLocation === "All" || (item.location || "Home") === activeLocation;
+      return matchesSearch && matchesCategory && matchesLocation;
     });
     const useFirstItem = pantryItems.slice().sort((a, b) => Number(a.days_left) - Number(b.days_left))[0];
 
@@ -591,6 +712,54 @@ export default function App() {
                 </div>
               </div>
               {cameraError ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{cameraError}</p> : null}
+              <div className="rounded-2xl border border-stone-200 bg-white p-4">
+                <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-moss">Barcode lookup (OpenFoodFacts)</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <input
+                    className="min-w-44 flex-1 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-moss"
+                    placeholder="Enter UPC/EAN barcode (e.g. 011110416605)"
+                    value={barcodeInput}
+                    onChange={(event) => setBarcodeInput(event.target.value)}
+                  />
+                  <button
+                    className="rounded-2xl bg-moss px-4 py-2 text-xs font-extrabold text-white"
+                    type="button"
+                    disabled={barcodeMutation.isPending || !barcodeInput.trim()}
+                    onClick={() => barcodeMutation.mutate(barcodeInput.trim())}
+                  >
+                    {barcodeMutation.isPending ? "Looking up..." : "Lookup barcode"}
+                  </button>
+                  {[
+                    { code: "011110416605", label: "Sample: Milk" },
+                    { code: "041303001028", label: "Sample: Oats" },
+                    { code: "0737628064502", label: "Sample: Basmati" },
+                  ].map((s) => (
+                    <button key={s.code} className="rounded-xl bg-fern px-3 py-1.5 text-xs font-bold text-moss" type="button" onClick={() => { setBarcodeInput(s.code); barcodeMutation.mutate(s.code); }}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                {barcodeMutation.isError ? <p className="mt-2 text-xs font-medium text-red-600">{barcodeMutation.error.message}</p> : null}
+                {barcodeMutation.data ? (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-fern px-3 py-2 text-sm">
+                    <span>
+                      <strong className="text-slate">{barcodeMutation.data.name}</strong>{" "}
+                      <span className="text-xs text-stone-500">• {barcodeMutation.data.category} • {barcodeMutation.data.days_left}d left • ${Number(barcodeMutation.data.price).toFixed(2)} ({barcodeMutation.data.source})</span>
+                    </span>
+                    <button
+                      className="rounded-xl bg-moss px-3 py-1.5 text-xs font-extrabold text-white"
+                      type="button"
+                      onClick={() => {
+                        pantryMutation.mutate([{ id: Date.now(), ...barcodeMutation.data }, ...pantryItems]);
+                        barcodeMutation.reset();
+                        setBarcodeInput("");
+                      }}
+                    >
+                      + Add to pantry
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               {cameraActive ? (
                 <div className="space-y-3">
                   <video ref={videoRef} autoPlay playsInline className="max-h-72 w-full rounded-2xl bg-black object-cover" />
@@ -671,6 +840,9 @@ export default function App() {
               <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" type="number" min="1" step="0.5" aria-label="Quantity" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: Number(event.target.value) }))} required />
               <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" placeholder="Unit (for example, pcs)" value={form.unit} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value }))} required />
               <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" placeholder="Category" value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} required />
+              <select className="rounded-2xl border border-stone-200 bg-white px-4 py-3" aria-label="Pantry location" value={form.location} onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))}>
+                {pantryLocations.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+              </select>
               <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" type="number" min="0" aria-label="Days left" value={form.days_left} onChange={(event) => setForm((current) => ({ ...current, days_left: Number(event.target.value) }))} required />
               <input className="rounded-2xl border border-stone-200 bg-white px-4 py-3" type="number" min="0" step="0.01" aria-label="Item price" value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: Number(event.target.value) }))} required />
               <div className="flex flex-wrap gap-3 md:col-span-2 xl:col-span-3">
@@ -686,6 +858,14 @@ export default function App() {
               {categories.map((category) => <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${activeCategory === category ? "bg-slate text-white" : "bg-fern text-stone-600 hover:bg-stone-100"}`}>{category}</button>)}
             </div>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-moss">Location:</span>
+            {locations.map((loc) => (
+              <button key={loc} type="button" onClick={() => setActiveLocation(loc)} className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold transition ${activeLocation === loc ? "bg-moss text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}>
+                {loc}
+              </button>
+            ))}
+          </div>
 
           <div className="mt-5 grid max-h-[34rem] gap-3 overflow-y-auto pr-2">
             {pantryQuery.isLoading ? <p className="text-sm text-stone-500">Loading pantry...</p> : null}
@@ -694,6 +874,7 @@ export default function App() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="text-lg font-extrabold text-slate">{item.name}</h4>
+                    <span className="rounded-full bg-fern px-2.5 py-1 text-xs font-bold text-moss">{item.location || "Home"}</span>
                     <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${Number(item.days_left) <= 3 ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>{item.days_left} days left</span>
                   </div>
                   <p className="mt-1 text-sm text-stone-500">{item.quantity} {item.unit} • {item.category} • ${Number(item.price).toFixed(2)}</p>
@@ -931,6 +1112,39 @@ export default function App() {
               )) : <p className="text-sm text-stone-500">Your cart is empty.</p>}
             </div>
           </SectionCard>
+
+          <SectionCard>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Store price comparison</p>
+                <h3 className="mt-1 text-xl font-extrabold text-slate">Compare cart across local grocers</h3>
+              </div>
+              <button
+                className="rounded-2xl bg-slate px-4 py-2 text-xs font-extrabold text-white"
+                type="button"
+                disabled={priceCompareMutation.isPending}
+                onClick={() => priceCompareMutation.mutate()}
+              >
+                {priceCompareMutation.isPending ? "Comparing..." : "Compare stores"}
+              </button>
+            </div>
+            {priceCompareMutation.data ? (
+              <div className="mt-4 space-y-2.5">
+                <p className="rounded-xl bg-fern px-3 py-2 text-xs font-bold text-moss">
+                  Best value: {priceCompareMutation.data.best_store} (save up to ${Number(priceCompareMutation.data.potential_savings).toFixed(2)})
+                </p>
+                {priceCompareMutation.data.stores.map((s) => (
+                  <div key={s.store} className="flex items-center justify-between rounded-2xl bg-stone-50 px-4 py-2.5 text-sm">
+                    <div>
+                      <p className="font-bold text-slate">{s.store}</p>
+                      <p className="text-xs text-stone-500">{s.note}</p>
+                    </div>
+                    <span className="font-extrabold text-moss">${Number(s.estimated_total).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="mt-3 text-xs text-stone-500">Click Compare stores to see estimated totals across regional grocers.</p>}
+          </SectionCard>
         </div>
       </div>
     );
@@ -982,7 +1196,7 @@ export default function App() {
                 Allergies or ingredients to avoid
                 <input className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-normal outline-none transition focus:border-moss" placeholder="For example: peanuts, dairy" value={recipeForm.allergies} onChange={(event) => setRecipeForm((current) => ({ ...current, allergies: event.target.value }))} />
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <label className="text-sm font-bold text-stone-600">
                   Servings
                   <input className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-normal outline-none transition focus:border-moss" type="number" min="1" max="12" value={recipeForm.servings} onChange={(event) => setRecipeForm((current) => ({ ...current, servings: event.target.value }))} required />
@@ -991,6 +1205,33 @@ export default function App() {
                   Budget ($)
                   <input className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-normal outline-none transition focus:border-moss" type="number" min="1" step="0.5" value={recipeForm.budget} onChange={(event) => setRecipeForm((current) => ({ ...current, budget: event.target.value }))} required />
                 </label>
+                <label className="text-sm font-bold text-stone-600">
+                  Max prep (m)
+                  <input className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 font-normal outline-none transition focus:border-moss" type="number" min="5" max="240" step="5" value={recipeForm.max_prep_minutes} onChange={(event) => setRecipeForm((current) => ({ ...current, max_prep_minutes: event.target.value }))} required />
+                </label>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-stone-600">Available appliances</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {applianceOptions.map((appName) => {
+                    const selected = (recipeForm.appliances || []).includes(appName);
+                    return (
+                      <button
+                        key={appName}
+                        type="button"
+                        onClick={() => setRecipeForm((current) => ({
+                          ...current,
+                          appliances: selected
+                            ? current.appliances.filter((a) => a !== appName)
+                            : [...(current.appliances || []), appName],
+                        }))}
+                        className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${selected ? "bg-moss text-white" : "bg-white text-stone-600 hover:bg-stone-100"}`}
+                      >
+                        {appName}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <button className="mt-2 rounded-2xl bg-moss px-5 py-3 font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-[#255a32] disabled:cursor-wait disabled:opacity-70" type="submit" disabled={recipeMutation.isPending}>
                 {recipeMutation.isPending ? "Creating your recipe..." : "Generate recipe"}
@@ -1033,7 +1274,24 @@ export default function App() {
                   <button className="rounded-2xl bg-lime-200 px-4 py-3 font-extrabold text-slate disabled:opacity-70" type="button" disabled={scheduleMealMutation.isPending} onClick={() => scheduleMealMutation.mutate({ day: selectedPlanDay, recipe: recipeMutation.data })}>
                     {scheduleMealMutation.isPending ? "Scheduling..." : "Add to week"}
                   </button>
+                  <button
+                    className="rounded-2xl bg-white/15 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-white/25"
+                    type="button"
+                    disabled={saveRecipeMutation.isPending}
+                    onClick={() => saveRecipeMutation.mutate({ ...recipeMutation.data, cuisine: recipeForm.preferences })}
+                  >
+                    {saveRecipeMutation.isPending ? "Saving..." : "Save recipe"}
+                  </button>
+                  <button
+                    className="rounded-2xl bg-white/15 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-white/25"
+                    type="button"
+                    disabled={recipeMutation.isPending}
+                    onClick={() => generateAiRecipe()}
+                  >
+                    Regenerate
+                  </button>
                 </div>
+                {saveRecipeMutation.isSuccess ? <p className="mt-2 text-xs font-bold text-moss">Recipe saved to your collection below!</p> : null}
                 {scheduleMealMutation.isError ? <p className="mt-3 text-sm font-medium text-red-600">{scheduleMealMutation.error.message}</p> : null}
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl bg-stone-50 p-4"><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-moss">Prep</p><p className="mt-1 text-xl font-extrabold text-slate">{recipeMutation.data.prep_minutes} min</p></div>
@@ -1066,7 +1324,17 @@ export default function App() {
               <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">This week&apos;s menu</p>
               <h3 className="mt-2 text-3xl font-extrabold text-slate">Plan it. Cook it. Use it.</h3>
             </div>
-            <p className="text-sm text-stone-500">{mealPlanQuery.data?.week_start ? `Week of ${new Date(`${mealPlanQuery.data.week_start}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Loading your week..."}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                className="rounded-2xl bg-moss px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-[#255a32] disabled:opacity-60"
+                type="button"
+                disabled={generateWeekMutation.isPending}
+                onClick={() => generateWeekMutation.mutate()}
+              >
+                {generateWeekMutation.isPending ? "Generating 7-day menu..." : "Auto-generate full week"}
+              </button>
+              <p className="text-sm text-stone-500">{mealPlanQuery.data?.week_start ? `Week of ${new Date(`${mealPlanQuery.data.week_start}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Loading your week..."}</p>
+            </div>
           </div>
           <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
             {weekDays.map((day) => {
@@ -1145,6 +1413,58 @@ export default function App() {
             </div>
           </SectionCard>
         </div>
+
+        <SectionCard className="bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Recipe library</p>
+              <h3 className="mt-1 text-2xl font-extrabold text-slate">Saved &amp; rated recipes</h3>
+            </div>
+            <span className="text-xs font-bold text-stone-500">{(savedRecipesQuery.data?.recipes ?? []).length} saved</span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {(savedRecipesQuery.data?.recipes ?? []).length ? (savedRecipesQuery.data?.recipes ?? []).map((saved) => (
+              <article key={saved.id} className="flex flex-col justify-between rounded-3xl border border-stone-200 bg-stone-50 p-5">
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="font-extrabold text-slate">{saved.title}</h4>
+                    <span className="rounded-full bg-fern px-2.5 py-1 text-xs font-bold text-moss">~{saved.estimated_calories_per_serving} cal</span>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-stone-500">{saved.summary}</p>
+                  <div className="mt-3 flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => rateRecipeMutation.mutate({ id: saved.id, rating: star })}
+                        className={`text-lg leading-none ${(saved.rating ?? 0) >= star ? "text-amber-500" : "text-stone-300"}`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                    <span className="ml-2 text-xs text-stone-500">{saved.rating ? `${saved.rating}/5` : "Rate"}</span>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    className="rounded-xl bg-moss px-3 py-1.5 text-xs font-bold text-white"
+                    type="button"
+                    onClick={() => scheduleMealMutation.mutate({ day: selectedPlanDay, recipe: saved })}
+                  >
+                    Add to {selectedPlanDay.slice(0, 3)}
+                  </button>
+                  <button
+                    className="rounded-xl bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600"
+                    type="button"
+                    onClick={() => deleteSavedRecipeMutation.mutate(saved.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </article>
+            )) : <p className="text-sm text-stone-500">Generate a recipe and click Save recipe to revisit and rate it here.</p>}
+          </div>
+        </SectionCard>
       </div>
     );
   }
@@ -1210,7 +1530,24 @@ export default function App() {
           <SectionCard>
             <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Log meal</p>
             <h3 className="mt-2 text-xl font-extrabold text-slate">Add nutrition entry</h3>
-            <form className="mt-4 grid gap-3" onSubmit={handleLogMeal}>
+            <div className="mt-3 flex gap-2">
+              <input
+                className="w-full rounded-2xl border border-stone-200 bg-fern px-3 py-2 text-xs outline-none focus:border-moss"
+                placeholder="Lookup verified food (e.g. Paneer, Spinach, Toor Dal)"
+                value={nutritionSearchQuery}
+                onChange={(event) => setNutritionSearchQuery(event.target.value)}
+              />
+              <button
+                className="shrink-0 rounded-2xl bg-slate px-3 py-2 text-xs font-bold text-white"
+                type="button"
+                disabled={nutritionLookupMutation.isPending || !nutritionSearchQuery.trim()}
+                onClick={() => nutritionLookupMutation.mutate(nutritionSearchQuery.trim())}
+              >
+                {nutritionLookupMutation.isPending ? "..." : "USDA Lookup"}
+              </button>
+            </div>
+            {nutritionLookupSource ? <p className="mt-1.5 text-xs font-semibold text-moss">Auto-filled from {nutritionLookupSource}</p> : null}
+            <form className="mt-3 grid gap-3" onSubmit={handleLogMeal}>
               <input className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-moss" placeholder="Meal name" value={nutritionForm.item_name} onChange={(event) => setNutritionForm((current) => ({ ...current, item_name: event.target.value }))} required />
               <div className="grid grid-cols-2 gap-3">
                 <label className="text-xs font-bold text-stone-500">Calories<input className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-slate" type="number" min="0" value={nutritionForm.calories} onChange={(event) => setNutritionForm((current) => ({ ...current, calories: event.target.value }))} required /></label>
@@ -1381,19 +1718,90 @@ export default function App() {
         <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <SectionCard>
             <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Workspace</p>
-            <h3 className="mt-2 text-2xl font-extrabold text-slate">Display settings</h3>
+            <h3 className="mt-2 text-2xl font-extrabold text-slate">Display &amp; expiry notifications</h3>
             <p className="mt-2 text-sm text-stone-500">Focus mode: {profile.focused_mode ? "On" : "Off"}.</p>
-            <button className="mt-4 rounded-2xl bg-fern px-4 py-2.5 text-sm font-extrabold text-moss transition hover:bg-stone-100" type="button" onClick={toggleFocusedMode}>
+            <button className="mt-3 rounded-2xl bg-fern px-4 py-2 text-xs font-extrabold text-moss transition hover:bg-stone-100" type="button" onClick={toggleFocusedMode}>
               {profile.focused_mode ? "Disable focus mode" : "Enable focus mode"}
             </button>
+
+            <form
+              className="mt-5 space-y-3 border-t border-stone-100 pt-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveProfilePatch({
+                  active_tab: activeTab,
+                  notify_email_enabled: notifyForm.notify_email_enabled,
+                  notify_push_enabled: notifyForm.notify_push_enabled,
+                  notify_days_threshold: Math.max(1, Number(notifyForm.notify_days_threshold) || 3),
+                  notification_email: notifyForm.notification_email,
+                });
+              }}
+            >
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">Expiry alert notifications</p>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate">
+                <input type="checkbox" checked={notifyForm.notify_email_enabled} onChange={(e) => setNotifyForm((c) => ({ ...c, notify_email_enabled: e.target.checked }))} />
+                Email digest for expiring items
+              </label>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate">
+                <input type="checkbox" checked={notifyForm.notify_push_enabled} onChange={(e) => setNotifyForm((c) => ({ ...c, notify_push_enabled: e.target.checked }))} />
+                Browser push notifications
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <input className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs" placeholder="Alert email" value={notifyForm.notification_email} onChange={(e) => setNotifyForm((c) => ({ ...c, notification_email: e.target.value }))} />
+                <input className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs" type="number" min="1" max="14" aria-label="Notify days threshold" value={notifyForm.notify_days_threshold} onChange={(e) => setNotifyForm((c) => ({ ...c, notify_days_threshold: e.target.value }))} />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button className="rounded-2xl bg-moss px-4 py-2 text-xs font-bold text-white" type="submit">Save alerts</button>
+                <button className="rounded-2xl bg-slate px-4 py-2 text-xs font-bold text-white" type="button" onClick={() => testNotifyMutation.mutate()}>Send test alert</button>
+              </div>
+              {notifyStatusMsg ? <p className="rounded-xl bg-fern px-3 py-2 text-xs font-semibold text-moss">{notifyStatusMsg}</p> : null}
+            </form>
           </SectionCard>
           <SectionCard>
-            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Account</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Account &amp; sharing</p>
             <h3 className="mt-2 text-2xl font-extrabold text-slate">{user?.name || "Grocify user"}</h3>
-            <p className="mt-2 text-sm text-stone-500">{user?.email}</p>
-            <div className="mt-5">
+            <p className="mt-1 text-sm text-stone-500">{user?.email}</p>
+
+            <div className="mt-5 border-t border-stone-100 pt-4">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">Household sharing (RBAC)</p>
+              <div className="mt-2 grid gap-2">
+                {(householdMembersQuery.data?.members ?? []).map((m) => (
+                  <div key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-fern px-3 py-2 text-xs">
+                    <div>
+                      <p className="font-bold text-slate">{m.member_name}</p>
+                      <p className="text-stone-500">{m.member_email} • {m.status}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        className="rounded-xl border border-stone-200 bg-white px-2 py-1 text-xs font-bold"
+                        value={m.role}
+                        onChange={(e) => updateMemberRoleMutation.mutate({ id: m.id, role: e.target.value })}
+                      >
+                        <option value="Admin">Admin</option>
+                        <option value="Editor">Editor</option>
+                        <option value="Viewer">Viewer</option>
+                      </select>
+                      <button className="rounded-xl bg-white px-2 py-1 font-bold text-red-600" type="button" onClick={() => removeMemberMutation.mutate(m.id)}>×</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <form
+                className="mt-3 grid grid-cols-3 gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  inviteMemberMutation.mutate(inviteForm);
+                }}
+              >
+                <input className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs" placeholder="Name" value={inviteForm.member_name} onChange={(e) => setInviteForm((c) => ({ ...c, member_name: e.target.value }))} required />
+                <input className="rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs" type="email" placeholder="Email" value={inviteForm.member_email} onChange={(e) => setInviteForm((c) => ({ ...c, member_email: e.target.value }))} required />
+                <button className="rounded-2xl bg-moss px-3 py-2 text-xs font-bold text-white" type="submit">Invite</button>
+              </form>
+            </div>
+
+            <div className="mt-5 border-t border-stone-100 pt-4">
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-moss">Pantry staples / custom ingredients</p>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {profile.custom_ingredients.length ? profile.custom_ingredients.map((item) => (
                   <span key={item} className="inline-flex items-center gap-2 rounded-full bg-fern px-3 py-1.5 text-sm font-semibold text-slate">
                     {item}
@@ -1401,9 +1809,9 @@ export default function App() {
                   </span>
                 )) : <p className="text-sm text-stone-500">None yet.</p>}
               </div>
-              <form className="mt-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); addProfileTag("custom_ingredients", customIngredientInput, setCustomIngredientInput); }}>
-                <input className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-moss" placeholder="Add staple (e.g. Ginger)" value={customIngredientInput} onChange={(event) => setCustomIngredientInput(event.target.value)} />
-                <button className="shrink-0 rounded-2xl bg-moss px-4 py-2.5 text-sm font-bold text-white" type="submit">Add</button>
+              <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); addProfileTag("custom_ingredients", customIngredientInput, setCustomIngredientInput); }}>
+                <input className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm outline-none focus:border-moss" placeholder="Add staple (e.g. Ginger)" value={customIngredientInput} onChange={(event) => setCustomIngredientInput(event.target.value)} />
+                <button className="shrink-0 rounded-2xl bg-moss px-4 py-2 text-sm font-bold text-white" type="submit">Add</button>
               </form>
             </div>
           </SectionCard>

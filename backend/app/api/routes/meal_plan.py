@@ -9,10 +9,13 @@ from app.models.cart import CartItem
 from app.models.meal_plan import WeeklyMealPlan
 from app.models.nutrition import NutritionEntry
 from app.models.pantry import PantryItem
+from app.models.profile import UserProfile
 from app.models.user import User
 from app.schemas.cart import CartItemResponse, CartResponse
 from app.schemas.meal_plan import WEEK_DAYS, MealPlanCreate, MealPlanEntry, WeeklyMealPlanResponse
+from app.schemas.recommendations import RecipeRequest
 from app.services.blackboard import blackboard
+from app.services.recipe_generator import generate_recipe
 
 
 router = APIRouter(prefix="/meal-plan", tags=["meal plan"])
@@ -170,3 +173,53 @@ def mark_meal_cooked(day: str, db: Session = Depends(get_db), current_user: User
         "deducted_items": deducted_items,
         "logged_calories": round(calories),
     }
+
+
+@router.post("/generate-week", response_model=WeeklyMealPlanResponse)
+def generate_full_weekly_menu(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> WeeklyMealPlanResponse:
+    pantry_items = db.scalars(select(PantryItem).where(PantryItem.user_id == current_user.id).order_by(PantryItem.days_left.asc())).all()
+    if not pantry_items:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Add pantry items before generating a weekly menu.")
+
+    profile = current_user.profile or UserProfile(user_id=current_user.id)
+    cuisines = profile.preferred_cuisines or ["Indian", "Mediterranean", "Mexican", "Pantry Bowl"]
+    allergies = profile.allergies or []
+    servings = max(1, min(12, int(profile.household_size or 2)))
+    max_prep = max(5, int(profile.max_prep_minutes or 30))
+
+    week_start = current_week_start()
+    existing_meals = db.scalars(
+        select(WeeklyMealPlan).where(WeeklyMealPlan.user_id == current_user.id, WeeklyMealPlan.week_start == week_start)
+    ).all()
+    for m in existing_meals:
+        db.delete(m)
+    db.flush()
+
+    for idx, day in enumerate(WEEK_DAYS):
+        rotated = pantry_items[idx % len(pantry_items) :] + pantry_items[: idx % len(pantry_items)]
+        cuisine = cuisines[idx % len(cuisines)]
+        req = RecipeRequest(
+            preferences=cuisine,
+            allergies=allergies,
+            servings=servings,
+            budget=20.0,
+            max_prep_minutes=max_prep,
+            appliances=[],
+        )
+        recipe = generate_recipe(req, rotated)
+        ingredient_data = [ing.model_dump() for ing in recipe.ingredients]
+        missing = [ing.name for ing in recipe.ingredients if not ing.from_pantry]
+        db.add(
+            WeeklyMealPlan(
+                user_id=current_user.id,
+                week_start=week_start,
+                day=day,
+                title=recipe.title,
+                servings=servings,
+                ingredients=ingredient_data,
+                missing_ingredients=missing,
+            )
+        )
+
+    db.commit()
+    return get_weekly_meal_plan(db=db, current_user=current_user)

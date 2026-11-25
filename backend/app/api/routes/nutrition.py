@@ -9,6 +9,7 @@ from app.models.profile import UserProfile
 from app.models.user import User
 from app.schemas.nutrition import NutritionEntryCreate, NutritionEntryResponse, NutritionResponse
 from app.services.blackboard import blackboard
+from app.services.nutrition_lookup import lookup_verified_nutrition
 
 
 class NutritionUpdateRequest(BaseModel):
@@ -69,3 +70,8 @@ def replace_nutrition(
     db.commit()
     blackboard.invalidate(current_user.id, "recommendations")
     return get_nutrition(db=db, current_user=current_user)
+
+
+@router.get("/lookup")
+def lookup_nutrition_endpoint(q: str, current_user: User = Depends(get_current_user)) -> dict:
+    return lookup_verified_nutrition(q)

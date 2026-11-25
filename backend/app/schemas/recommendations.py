@@ -26,6 +26,8 @@ class RecipeRequest(BaseModel):
     allergies: list[str] = Field(default_factory=list, max_length=20)
     servings: int = Field(default=2, ge=1, le=12)
     budget: float = Field(default=20, gt=0, le=500)
+    max_prep_minutes: int = Field(default=30, ge=5, le=240)
+    appliances: list[str] = Field(default_factory=list, max_length=12)
 
 
 class RecipeOutputModel(BaseModel):

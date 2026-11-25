@@ -82,7 +82,7 @@ def scan_pantry_photo(image_data_url: str, scan_type: str = "auto") -> PantrySca
     )
 
     try:
-        client = OpenAI(api_key=settings.openai_api_key)
+        client = OpenAI(api_key=settings.openai_api_key, max_retries=0)
         response = client.responses.create(
             model=settings.openai_model,
             instructions=instructions,

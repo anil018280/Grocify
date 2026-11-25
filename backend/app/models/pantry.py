@@ -13,6 +13,7 @@ class PantryItem(Base):
     quantity: Mapped[float] = mapped_column(Float, nullable=False)
     unit: Mapped[str] = mapped_column(String(40), nullable=False)
     category: Mapped[str] = mapped_column(String(80), nullable=False)
+    location: Mapped[str] = mapped_column(String(80), nullable=False, default="Home")
     days_left: Mapped[int] = mapped_column(Integer, nullable=False)
     price: Mapped[float] = mapped_column(Float, nullable=False)
     nutrition: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)

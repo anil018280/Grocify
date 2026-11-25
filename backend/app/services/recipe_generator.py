@@ -28,6 +28,8 @@ def _build_pantry_fallback_recipe(request: RecipeRequest, pantry_items: list[Pan
 
     pref = (request.preferences or "").strip()
     pref_lower = pref.lower()
+    appliances = [a.strip() for a in request.appliances if a.strip()]
+    appliance_note = f" using {', '.join(appliances)}" if appliances else ""
     lead_names = [item.name for item in chosen[:2]]
     lead_label = " & ".join(lead_names) if lead_names else "Pantry"
 
@@ -38,7 +40,7 @@ def _build_pantry_fallback_recipe(request: RecipeRequest, pantry_items: list[Pan
             RecipeIngredient(name="Garam Masala & Turmeric", amount="1.5 tsp", from_pantry=False),
         ]
         steps = [
-            "Heat 1 tbsp oil in a skillet over medium heat and sauté garlic, ginger, and warm spices for 1 minute.",
+            f"Prep ingredients ({request.max_prep_minutes}m max prep){appliance_note}. Heat 1 tbsp oil and sauté garlic, ginger, and warm spices for 1 minute.",
             f"Add {', '.join(item.name for item in chosen[:2])} and cook for 4–5 minutes until tender.",
             "Stir in remaining pantry ingredients and simmer 6–8 minutes so flavors meld.",
             f"Adjust seasoning to taste and serve warm for {request.servings} serving(s).",
@@ -50,7 +52,7 @@ def _build_pantry_fallback_recipe(request: RecipeRequest, pantry_items: list[Pan
             RecipeIngredient(name="Fresh Basil", amount="0.5 bunch", from_pantry=False),
         ]
         steps = [
-            "Warm olive oil in a pan over medium heat and sauté minced garlic for 45 seconds.",
+            f"Warm olive oil{appliance_note} and sauté minced garlic for 45 seconds.",
             f"Toss in {', '.join(item.name for item in chosen)} and cook 6–8 minutes until lightly browned.",
             "Finish with fresh herbs, cracked black pepper, and serve warm.",
         ]
@@ -62,7 +64,7 @@ def _build_pantry_fallback_recipe(request: RecipeRequest, pantry_items: list[Pan
         ]
         steps = [
             f"Prep and chop your nearest-expiry pantry items ({', '.join(item.name for item in chosen[:3])}).",
-            "Sauté aromatics in a skillet for 1–2 minutes, then cook protein/grains until heated through.",
+            f"Cook{appliance_note} for 5–8 minutes until heated through.",
             "Fold in leafy greens or fresh produce at the end to preserve texture and nutrients.",
             f"Divide into {request.servings} portion(s) and finish with fresh lemon juice.",
         ]
@@ -91,7 +93,7 @@ def _build_pantry_fallback_recipe(request: RecipeRequest, pantry_items: list[Pan
             f"Pantry-first{' ' + pref if pref else ''} recipe prioritizing {urgent_count or len(chosen)} "
             f"expiring/available ingredient(s) within your ${float(request.budget):.2f} budget."
         ),
-        prep_minutes=10,
+        prep_minutes=min(10, request.max_prep_minutes),
         cook_minutes=15,
         estimated_calories_per_serving=per_serving_cals,
         estimated_cost=est_cost,
@@ -124,7 +126,7 @@ def generate_recipe(request: RecipeRequest, pantry_items: list[PantryItem]) -> R
         for item in sorted(pantry_items, key=lambda item: item.days_left)
     ]
     try:
-        client = OpenAI(api_key=settings.openai_api_key)
+        client = OpenAI(api_key=settings.openai_api_key, max_retries=0)
         response = client.responses.create(
             model=settings.openai_model,
             instructions=RECIPE_INSTRUCTIONS,
@@ -134,6 +136,8 @@ def generate_recipe(request: RecipeRequest, pantry_items: list[PantryItem]) -> R
                     "allergies": request.allergies,
                     "servings": request.servings,
                     "budget": request.budget,
+                    "max_prep_minutes": request.max_prep_minutes,
+                    "appliances": request.appliances,
                     "pantry_items": pantry_context,
                 }
             ),

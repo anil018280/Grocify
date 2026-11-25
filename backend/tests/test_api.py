@@ -143,3 +143,52 @@ def test_recipe_schedule_missing_cart_and_mark_cooked(client: TestClient, auth_h
 
     nutrition_after = client.get("/api/v1/nutrition", headers=auth_headers).json()["calorie_entries"]
     assert len(nutrition_after) == 1
+
+
+def test_roadmap_features_end_to_end(client: TestClient, auth_headers: dict):
+    # Barcode lookup
+    bc = client.get("/api/v1/pantry/barcode/011110416605", headers=auth_headers)
+    assert bc.status_code == 200
+    assert bc.json()["name"] == "Organic Whole Milk"
+
+    # Verified nutrition lookup
+    nut = client.get("/api/v1/nutrition/lookup?q=Paneer", headers=auth_headers)
+    assert nut.status_code == 200
+    assert nut.json()["calories"] == 265
+
+    # Cart price comparison
+    client.put("/api/v1/cart", json=[{"name": "Lemons", "quantity": 2, "price": 2.0}], headers=auth_headers)
+    cmp_res = client.post("/api/v1/cart/price-compare", headers=auth_headers)
+    assert cmp_res.status_code == 200
+    assert len(cmp_res.json()["stores"]) == 4
+
+    # Put pantry item first so recipe generation & weekly menu have pantry context
+    client.put("/api/v1/pantry", json=[{**bc.json()}], headers=auth_headers)
+
+    # Save & rate recipe
+    recipe = client.post(
+        "/api/v1/recommendations/recipe",
+        json={"preferences": "indian", "allergies": [], "servings": 2, "budget": 15, "max_prep_minutes": 20, "appliances": ["Stovetop"]},
+        headers=auth_headers,
+    ).json()
+    saved = client.post("/api/v1/recommendations/saved", json={**recipe, "cuisine": "indian"}, headers=auth_headers)
+    assert saved.status_code == 201
+    rated = client.patch(f"/api/v1/recommendations/saved/{saved.json()['id']}/rate", json={"rating": 5}, headers=auth_headers)
+    assert rated.status_code == 200
+    assert rated.json()["rating"] == 5
+
+    # Full 7-day weekly menu generation
+    week_res = client.post("/api/v1/meal-plan/generate-week", headers=auth_headers)
+    assert week_res.status_code == 200
+    assert len(week_res.json()["meals"]) == 7
+
+    # Household sharing + test notification
+    inv = client.post(
+        "/api/v1/profile/household-members",
+        json={"member_name": "Alex", "member_email": "alex@example.com", "role": "Editor"},
+        headers=auth_headers,
+    )
+    assert inv.status_code == 201
+    notif = client.post("/api/v1/profile/test-notification", headers=auth_headers)
+    assert notif.status_code == 200
+    assert notif.json()["status"] == "sent"

@@ -6,6 +6,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.cart import CartItem
 from app.models.user import User
 from app.schemas.cart import CartItemCreate, CartItemResponse, CartResponse
+from app.services.price_compare import compare_cart_prices
 
 
 router = APIRouter(prefix="/cart", tags=["cart"])
@@ -34,3 +35,9 @@ def replace_cart(
     )
     db.commit()
     return list_cart(db=db, current_user=current_user)
+
+
+@router.post("/price-compare")
+def price_compare_cart(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
+    items = db.scalars(select(CartItem).where(CartItem.user_id == current_user.id)).all()
+    return compare_cart_prices(items)

@@ -19,5 +19,9 @@ class UserProfile(Base):
     allergies: Mapped[list] = mapped_column(JSON, default=list)
     cooking_skill: Mapped[str] = mapped_column(String(40), default="Intermediate")
     max_prep_minutes: Mapped[int] = mapped_column(Integer, default=30)
+    notify_email_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_push_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    notify_days_threshold: Mapped[int] = mapped_column(Integer, default=3)
+    notification_email: Mapped[str] = mapped_column(String(255), default="")
 
     user = relationship("User", back_populates="profile")

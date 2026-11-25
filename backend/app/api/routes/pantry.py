@@ -6,6 +6,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.pantry import PantryItem
 from app.models.user import User
 from app.schemas.pantry import PantryItemCreate, PantryItemResponse, PantryListResponse, PantryScanRequest, PantryScanResponse
+from app.services.barcode_lookup import lookup_barcode
 from app.services.blackboard import blackboard
 from app.services.pantry_scanner import scan_pantry_photo
 
@@ -24,6 +25,7 @@ def list_pantry(db: Session = Depends(get_db), current_user: User = Depends(get_
                 quantity=item.quantity,
                 unit=item.unit,
                 category=item.category,
+                location=getattr(item, "location", "Home") or "Home",
                 days_left=item.days_left,
                 price=item.price,
                 nutrition=item.nutrition,
@@ -48,6 +50,7 @@ def replace_pantry(
                 quantity=item.quantity,
                 unit=item.unit,
                 category=item.category,
+                location=getattr(item, "location", "Home") or "Home",
                 days_left=item.days_left,
                 price=item.price,
                 nutrition=item.nutrition.model_dump(),
@@ -79,3 +82,10 @@ def scan_photo(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Could not analyze the pantry photo. Please check your OpenAI API key/model and try again.",
         ) from exc
+
+
+@router.get("/barcode/{code}")
+def get_barcode_product(code: str, current_user: User = Depends(get_current_user)) -> dict:
+    if not code.strip().isdigit() or len(code.strip()) < 6:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Enter a valid numeric barcode (6+ digits).")
+    return lookup_barcode(code)

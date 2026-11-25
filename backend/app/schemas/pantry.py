@@ -16,6 +16,7 @@ class PantryItemBase(BaseModel):
     quantity: float = Field(ge=1)
     unit: str = Field(min_length=1, max_length=40)
     category: str = Field(min_length=1, max_length=80)
+    location: str = Field(default="Home", min_length=1, max_length=80)
     days_left: int = Field(ge=0)
     price: float = Field(ge=0)
     nutrition: PantryNutrition

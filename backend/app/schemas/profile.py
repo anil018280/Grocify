@@ -13,3 +13,7 @@ class ProfileResponse(BaseModel):
     allergies: list[str] = Field(default_factory=list)
     cooking_skill: str = Field(default="Intermediate", max_length=40)
     max_prep_minutes: int = Field(default=30, ge=5, le=240)
+    notify_email_enabled: bool = True
+    notify_push_enabled: bool = False
+    notify_days_threshold: int = Field(default=3, ge=1, le=14)
+    notification_email: str = Field(default="", max_length=255)
